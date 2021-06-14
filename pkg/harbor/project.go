@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/kubermatic-labs/registryman/pkg/config/options"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
