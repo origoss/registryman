@@ -23,12 +23,12 @@ import (
 
 var _ = Describe("Configreader", func() {
 	It("fails for invalid path", func() {
-		m, err := config.ReadManifests("nonexisting")
+		m, err := config.ReadManifests("nonexisting", nil)
 		Expect(err).To(HaveOccurred())
 		Expect(m).To(BeNil())
 	})
 	It("gets the correct values for api/testdata", func() {
-		m, err := config.ReadManifests("testdata")
+		m, err := config.ReadManifests("testdata", nil)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(m).ToNot(BeNil())
 		registry := m.ExpectedProvider().GetRegistries()

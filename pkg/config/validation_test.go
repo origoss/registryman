@@ -28,7 +28,7 @@ var _ = Describe("Validation", func() {
 	Context("when getting multiple global registries", func() {
 		It("should error", func() {
 			testDir := fmt.Sprintf("%s/test_multiple_global_registries", testdataDir)
-			manifests, err := config.ReadManifests(testDir)
+			manifests, err := config.ReadManifests(testDir, nil)
 			Expect(err).Should(MatchError(config.ValidationErrorMultipleGlobalRegistries))
 			Expect(manifests).To(BeNil())
 		})
@@ -36,7 +36,7 @@ var _ = Describe("Validation", func() {
 	Context("when a project has invalid local registries", func() {
 		It("should error", func() {
 			testDir := fmt.Sprintf("%s/test_invalid_local_projects", testdataDir)
-			manifests, err := config.ReadManifests(testDir)
+			manifests, err := config.ReadManifests(testDir, nil)
 			Expect(err).Should(MatchError(config.ValidationErrorInvalidLocalRegistryInProject))
 			Expect(manifests).To(BeNil())
 		})
