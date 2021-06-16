@@ -31,8 +31,29 @@ func (p *project) GetName() string {
 }
 
 func (p *project) Delete() error {
-	return fmt.Errorf("project deletion on ACR is not implemented: %w", globalregistry.RecoverableError)
-	//	return p.api.delete(p.Name)
+	repos, err := p.getRepositories()
+	if err != nil {
+		return err
+	}
+
+	if len(repos) > 0 {
+		switch opt := p.api.reg.GetOptions().(type) {
+		case globalregistry.CanForceDelete:
+			if f := opt.ForceDeleteProjects(); !f {
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.GetName(), globalregistry.RecoverableError)
+			}
+		}
+		for _, repo := range repos {
+			p.api.reg.logger.V(1).Info("deleting repository",
+				"repositoryName", repo.GetName(),
+			)
+			err = p.deleteRepository(repo)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregistry.ProjectMemberCredentials, error) {
@@ -57,4 +78,12 @@ func (p *project) GetReplicationRules(
 	direction *globalregistry.ReplicationDirection) ([]globalregistry.ReplicationRule, error) {
 
 	return nil, nil
+}
+
+func (p *project) getRepositories() ([]globalregistry.Repository, error) {
+	return p.api.listProjectRepositories(p)
+}
+
+func (p *project) deleteRepository(r globalregistry.Repository) error {
+	return p.api.deleteProjectRepository(p, r)
 }
