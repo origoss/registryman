@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
-	"github.com/kubermatic-labs/registryman/pkg/config/options"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry/reconciler"
 	"github.com/spf13/cobra"
@@ -46,13 +45,8 @@ to quickly create a Cobra application.`,
 
 		logger.Info("reading config files", "dir", args[0])
 		config.SetLogger(logger)
-<<<<<<< HEAD
 
 		manifests, err := config.ReadManifests(args[0], options)
-=======
-		options.SetOptions(dryRun, forceDelete)
-		manifests, err := config.ReadManifests(args[0])
->>>>>>> 793fda3 (cmd options added)
 
 		if err != nil {
 			return err
@@ -108,11 +102,7 @@ func init() {
 
 	options = &cliOptions{}
 	applyCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "if specified, no operation will be performed")
-<<<<<<< HEAD
 	applyCmd.PersistentFlags().BoolVar(&options.forceDelete, "force-delete", false, "if specified, projects will be deleted, even with repositories")
-=======
-	applyCmd.PersistentFlags().BoolVar(&forceDelete, "force-delete", false, "if specified, projects will be deleted, even with repositories")
->>>>>>> 793fda3 (cmd options added)
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
