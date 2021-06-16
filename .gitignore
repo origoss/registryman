@@ -7,4 +7,4 @@
 Makefile
 .golangci.yaml
 .vscode/
-registryman-tes
+registryman-test

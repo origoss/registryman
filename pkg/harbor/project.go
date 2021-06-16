@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kubermatic-labs/registryman/pkg/config/options"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -48,15 +47,22 @@ func (p *project) Delete() error {
 	}
 
 	if len(repos) > 0 {
-		if !options.ForceDelete {
-			return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.RecoverableError)
+		switch opt := p.api.reg.GetOptions().(type) {
+		case globalregistry.CanForceDelete:
+			if f := opt.ForceDeleteProjects(); !f {
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.RecoverableError)
+			}
 		}
 		for _, repo := range repos {
+			p.api.reg.logger.V(1).Info("deleting repository",
+				"repositoryName", repo.GetName(),
+			)
 			err = p.deleteRepository(repo)
 			if err != nil {
 				return err
 			}
 		}
+
 	}
 	return p.api.delete(p.id)
 }

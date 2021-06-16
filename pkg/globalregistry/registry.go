@@ -47,6 +47,9 @@ func GetReplicationCapability(provider string) ReplicationCapabilities {
 	return cap
 }
 
+type RegistryOptions interface {
+}
+
 // RegistryConfig interface describes a registry configuration that is needed to
 // create a new provider-specific Registry via its constructor.
 type RegistryConfig interface {
@@ -55,6 +58,7 @@ type RegistryConfig interface {
 	GetPassword() string
 	GetAPIEndpoint() string
 	GetName() string
+	GetOptions() RegistryOptions
 }
 
 // Registry is an abstraction over registries. It is an abstraction over the

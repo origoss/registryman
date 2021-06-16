@@ -23,6 +23,7 @@ import (
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/globalregistry/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config/registry"
+	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	_ "github.com/kubermatic-labs/registryman/pkg/harbor"
 
 	_ "github.com/kubermatic-labs/registryman/pkg/acr"
@@ -56,14 +57,17 @@ func init() {
 type ApiObjectStore struct {
 	store      map[schema.GroupVersionKind][]runtime.Object
 	serializer *json.Serializer
+	options    globalregistry.RegistryOptions
 }
 
 func (aos *ApiObjectStore) GetSerializer() *json.Serializer {
 	return aos.serializer
 }
 
-func ReadManifests(path string) (*ApiObjectStore, error) {
-	aos := &ApiObjectStore{}
+func ReadManifests(path string, options globalregistry.RegistryOptions) (*ApiObjectStore, error) {
+	aos := &ApiObjectStore{
+		options: options,
+	}
 	aos.serializer = json.NewSerializerWithOptions(
 		json.DefaultMetaFactory,
 		scheme,
@@ -250,6 +254,10 @@ func (apip *ApiProvider) GetScanners() []*api.Scanner {
 		scanners[i] = reg.(*api.Scanner)
 	}
 	return scanners
+}
+
+func (apip *ApiProvider) GetCliOptions() globalregistry.RegistryOptions {
+	return (*ApiObjectStore)(apip).options
 }
 
 type ExpectedProvider ApiObjectStore

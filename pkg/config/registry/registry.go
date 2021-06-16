@@ -25,6 +25,7 @@ type ApiProvider interface {
 	GetProjects() []*api.Project
 	GetRegistries() []*api.Registry
 	GetScanners() []*api.Scanner
+	GetCliOptions() globalregistry.RegistryOptions
 }
 
 type Registry struct {
@@ -65,6 +66,11 @@ func (reg *Registry) GetUsername() string {
 
 func (reg *Registry) GetPassword() string {
 	return reg.Spec.Password
+}
+
+func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
+	// TODO: CLI and YAML options decisions
+	return reg.GetCliOptions()
 }
 
 func (reg *Registry) ToReal(logger logr.Logger) (globalregistry.Registry, error) {
