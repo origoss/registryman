@@ -36,15 +36,29 @@ func (p *project) GetName() string {
 // are no repos of the projects. Otherwise, it returns an error.
 //
 func (p *project) Delete() error {
-	repoNames, err := p.api.getRepositories()
+	repos, err := p.getRepositories()
 	if err != nil {
 		return err
 	}
-	reposOfProject := p.api.collectReposOfProject(p.name, repoNames)
-	if len(reposOfProject) == 0 {
-		return nil
+
+	if len(repos) > 0 {
+		switch opt := p.api.reg.GetOptions().(type) {
+		case globalregistry.CanForceDelete:
+			if f := opt.ForceDeleteProjects(); !f {
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.GetName(), globalregistry.ErrRecoverableError)
+			}
+		}
+		for _, repo := range repos {
+			p.api.reg.logger.V(1).Info("deleting repository",
+				"repositoryName", repo.GetName(),
+			)
+			err = p.deleteRepository(repo)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.name, globalregistry.ErrRecoverableError)
+	return nil
 }
 
 // AssignMember implements the globalregistry.Project interface. Currently, it
@@ -96,4 +110,12 @@ func (p *project) UnassignScanner(s globalregistry.Scanner) error {
 func (p *project) GetUsedStorage() (int, error) {
 	return -1, fmt.Errorf("cannot get used storage of a project in ACR: %w",
 		globalregistry.ErrNotImplemented)
+}
+
+func (p *project) getRepositories() ([]globalregistry.Repository, error) {
+	return p.api.listProjectRepositories(p)
+}
+
+func (p *project) deleteRepository(r globalregistry.Repository) error {
+	return p.api.deleteProjectRepository(p, r)
 }
