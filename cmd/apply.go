@@ -45,7 +45,7 @@ to quickly create a Cobra application.`,
 
 		logger.Info("reading config files", "dir", args[0])
 		config.SetLogger(logger)
-		// options.SetOptions(dryRun, forceDelete)
+
 		manifests, err := config.ReadManifests(args[0], options)
 
 		if err != nil {
