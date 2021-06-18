@@ -50,7 +50,7 @@ func (p *project) Delete() error {
 		switch opt := p.api.reg.GetOptions().(type) {
 		case globalregistry.CanForceDelete:
 			if f := opt.ForceDeleteProjects(); !f {
-				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.RecoverableError)
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.ErrRecoverableError)
 			}
 		}
 		for _, repo := range repos {

@@ -245,3 +245,12 @@ func (p *projectAPI) listProjectRepositories(proj *project) ([]globalregistry.Re
 //func (p *projectAPI) listProjectRepositories(proj *project) ([]globalregistry.Repository, error) {
 //	return nil, fmt.Errorf("not implemented")
 //}
+func (p *projectAPI) collectReposOfProject(projectName string, repoNames []string) []string {
+	reposOfProject := []string{}
+	for _, repoName := range repoNames {
+		if projectNameFromRepoName(repoName) == projectName {
+			reposOfProject = append(reposOfProject, repoName)
+		}
+	}
+	return reposOfProject
+}
