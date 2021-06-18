@@ -104,7 +104,7 @@ func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregi
 	switch memberType {
 	default:
 		return nil, fmt.Errorf("unhandled member type: %s", memberType)
-	case "User":
+	case userType:
 		role, err := roleFromString(member.GetRole())
 		if err != nil {
 			return nil, err
@@ -116,11 +116,36 @@ func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregi
 			},
 		}
 		_, err = p.api.createProjectMember(p.id, pum)
+		return nil, err
+	case groupType:
+		groupMember, ok := member.(globalregistry.LdapMember)
+		if !ok {
+			return nil, fmt.Errorf("error assigning group %s to project %s: group is not LDAP group",
+				member.GetName(), p.Name)
+		}
+		role, err := roleFromString(member.GetRole())
 		if err != nil {
 			return nil, err
 		}
-		return nil, nil
-	case "Robot":
+		userGroup := &userGroup{
+			GroupName:   member.GetName(),
+			LdapGroupDn: groupMember.GetDN(),
+			GroupType:   1,
+		}
+
+		_, err = p.api.reg.updateIDOfUserGroup(userGroup)
+		// err = p.api.reg.getOrCreateUsergroup(userGroup)
+		if err != nil {
+			return nil, err
+		}
+
+		pum := &projectMemberRequestBody{
+			RoleId:      role,
+			MemberGroup: userGroup,
+		}
+		_, err = p.api.createProjectMember(p.id, pum)
+		return nil, err
+	case robotType:
 		prm := &robot{
 			Description: "generated robot member",
 			Level:       "project",
@@ -155,7 +180,7 @@ func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregi
 }
 
 func (p *project) GetMembers() ([]globalregistry.ProjectMember, error) {
-	userMembers, err := p.api.getUserMembers(p.id)
+	userGroupMembers, err := p.api.getMembers(p.id)
 	if err != nil {
 		return nil, err
 	}
@@ -163,12 +188,12 @@ func (p *project) GetMembers() ([]globalregistry.ProjectMember, error) {
 	if err != nil {
 		return nil, err
 	}
-	members := make([]globalregistry.ProjectMember, len(userMembers)+len(robotMembers))
+	members := make([]globalregistry.ProjectMember, len(userGroupMembers)+len(robotMembers))
 
 	c := 0
 	// collecting the members of type User
-	for _, user := range userMembers {
-		members[c] = user
+	for _, userGroup := range userGroupMembers {
+		members[c] = userGroup.toProjectMember()
 		c++
 	}
 
@@ -187,10 +212,10 @@ func (p *project) UnassignMember(member globalregistry.ProjectMember) error {
 	switch memberType {
 	default:
 		return fmt.Errorf("unhandled member type: %s", memberType)
-	case "User":
+	case userType, groupType:
 		var m *projectMemberEntity
 		var members []*projectMemberEntity
-		members, err = p.api.getUserMembers(p.id)
+		members, err = p.api.getMembers(p.id)
 		if err != nil {
 			return err
 		}
@@ -203,8 +228,8 @@ func (p *project) UnassignMember(member globalregistry.ProjectMember) error {
 		if m == nil {
 			return fmt.Errorf("user member not found")
 		}
-		err = p.api.deleteProjectUserMember(p.id, m.Id)
-	case "Robot":
+		err = p.api.deleteProjectMember(p.id, m.Id)
+	case robotType:
 		var m *robot
 		var members []*robot
 		members, err = p.api.getRobotMembers(p.id)
