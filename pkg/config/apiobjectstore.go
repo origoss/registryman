@@ -90,6 +90,8 @@ func (aos *ApiObjectStore) RemoveManifest(filename string) error {
 	return os.Remove(fName)
 }
 
+// ReadManifests creates a new ApiObjectStore. It reads all files under path.
+// The files are deserialized and validated.
 func ReadManifests(path string, options globalregistry.RegistryOptions) (*ApiObjectStore, error) {
 	aos := &ApiObjectStore{
 		path:    path,

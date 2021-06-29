@@ -88,6 +88,7 @@ func (reg *Registry) GetPassword() string {
 	return reg.apiRegistry.Spec.Password
 }
 
+// GetOptions method implements the globalregistry.RegistryConfig interface.
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
 	// TODO: CLI and YAML options decisions
 	return reg.apiProvider.GetCliOptions

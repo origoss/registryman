@@ -52,6 +52,8 @@ func GetReplicationCapability(provider string) ReplicationCapabilities {
 	return cap
 }
 
+// RegistryOptions interface describes the registry options
+// coming from CLI options, or from the registry description.
 type RegistryOptions interface {
 }
 
