@@ -5,7 +5,7 @@
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,6 +13,7 @@ http://www.apache.org/licenses/LICENSE-2.0
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
 package harbor
 
 import (
@@ -55,7 +56,7 @@ func (p *project) Delete() error {
 		}
 		for _, repo := range repos {
 			p.api.reg.logger.V(1).Info("deleting repository",
-				"repositoryName", repo.GetName(),
+				"repositoryName", repo.Name,
 			)
 			err = p.deleteRepository(repo)
 			if err != nil {
@@ -259,11 +260,11 @@ func (p *project) AssignReplicationRule(remoteReg globalregistry.RegistryConfig,
 	return p.api.reg.ReplicationAPI().(*replicationAPI).create(p, remoteReg, trigger, direction)
 }
 
-func (p *project) getRepositories() ([]globalregistry.Repository, error) {
+func (p *project) getRepositories() ([]*projectRepositoryRespBody, error) {
 	return p.api.listProjectRepositories(p)
 }
 
-func (p *project) deleteRepository(r globalregistry.Repository) error {
+func (p *project) deleteRepository(r *projectRepositoryRespBody) error {
 	return p.api.deleteProjectRepository(p, r)
 }
 
