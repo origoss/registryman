@@ -15,3 +15,4 @@ spec:
   - name: project-admins
     type: Group
     role: ProjectAdmin
+    dn: cn=Developers,ou=users,dc=example,dc=com

@@ -41,7 +41,7 @@ func newProjectAPI(reg *registry) (*projectAPI, error) {
 // Create implements the globalregistry.ProjectAPI interface. Currently, it is
 // not implemented.
 func (p *projectAPI) Create(name string) (globalregistry.Project, error) {
-	return nil, fmt.Errorf("cannot create project in ACR: %w", globalregistry.ErrNotImplemented)
+	return nil, fmt.Errorf("cannot create project in ACR: %w", globalregistry.ErrRecoverableError)
 }
 
 func (p *projectAPI) GetByName(name string) (globalregistry.Project, error) {

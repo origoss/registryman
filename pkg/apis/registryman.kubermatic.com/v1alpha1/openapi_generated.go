@@ -30,6 +30,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.Options":       schema_pkg_apis_registrymankubermaticcom_v1alpha1_Options(ref),
 		"github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.Project":       schema_pkg_apis_registrymankubermaticcom_v1alpha1_Project(ref),
 		"github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.ProjectMember": schema_pkg_apis_registrymankubermaticcom_v1alpha1_ProjectMember(ref),
 		"github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.ProjectSpec":   schema_pkg_apis_registrymankubermaticcom_v1alpha1_ProjectSpec(ref),
@@ -86,6 +87,28 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                                     schema_pkg_apis_meta_v1_TypeMeta(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                                schema_pkg_apis_meta_v1_UpdateOptions(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                                   schema_pkg_apis_meta_v1_WatchEvent(ref),
+	}
+}
+
+func schema_pkg_apis_registrymankubermaticcom_v1alpha1_Options(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Options specifies different possible settings for the registry. These values will overwrite the corresponding CLI options in use.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"forceDelete": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If specified, projects can be deleted, even with repositories.",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"forceDelete"},
+			},
+		},
 	}
 }
 
@@ -371,10 +394,18 @@ func schema_pkg_apis_registrymankubermaticcom_v1alpha1_RegistrySpec(ref common.R
 							Format:      "",
 						},
 					},
+					"options": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Options specifies different possible settings for the registry. These values will overwrite the corresponding CLI options in use.",
+							Ref:         ref("github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.Options"),
+						},
+					},
 				},
 				Required: []string{"provider", "apiEndpoint", "username", "password", "role"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1.Options"},
 	}
 }
 

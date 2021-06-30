@@ -88,10 +88,25 @@ func (reg *Registry) GetPassword() string {
 	return reg.apiRegistry.Spec.Password
 }
 
+type Options struct {
+	forceDelete bool
+}
+
+var _ globalregistry.CanForceDelete = &Options{}
+
+// ForceDeleteProjects returns with the value of the force-delete option.
+func (o *Options) ForceDeleteProjects() bool {
+	return o.forceDelete
+}
+
 // GetOptions method implements the globalregistry.RegistryConfig interface.
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
-	// TODO: CLI and YAML options decisions
-	return reg.apiProvider.GetCliOptions
+	cliOptions := reg.apiProvider.GetCliOptions()
+	if reg.apiRegistry.Spec.Options != nil {
+		options := &Options{forceDelete: reg.apiRegistry.Spec.Options.ForceDelete}
+		return options
+	}
+	return cliOptions
 }
 
 // ToReal method turns the (i.e. expected) Registry value into a

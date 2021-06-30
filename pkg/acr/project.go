@@ -48,14 +48,14 @@ func (p *project) Delete() error {
 			if f := opt.ForceDeleteProjects(); !f {
 				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.GetName(), globalregistry.ErrRecoverableError)
 			}
-		}
-		for _, repo := range repoNames {
-			p.api.reg.logger.V(1).Info("deleting repository",
-				"repositoryName", repoNames,
-			)
-			err = p.deleteRepository(repo)
-			if err != nil {
-				return err
+			for _, repo := range repoNames {
+				p.api.reg.logger.V(1).Info("deleting repository",
+					"repositoryName", repoNames,
+				)
+				err = p.deleteRepository(repo)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
