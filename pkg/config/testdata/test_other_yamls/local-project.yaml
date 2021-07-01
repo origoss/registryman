@@ -14,4 +14,3 @@ spec:
   - name: ci-robot
     type: Robot
     role: PushOnly
-
