@@ -88,14 +88,14 @@ func (reg *Registry) GetPassword() string {
 	return reg.apiRegistry.Spec.Password
 }
 
-type Options struct {
+type registryOptions struct {
 	forceDelete bool
 }
 
-var _ globalregistry.CanForceDelete = &Options{}
+var _ globalregistry.CanForceDelete = &registryOptions{}
 
 // ForceDeleteProjects returns with the value of the force-delete option.
-func (o *Options) ForceDeleteProjects() bool {
+func (o *registryOptions) ForceDeleteProjects() bool {
 	return o.forceDelete
 }
 
@@ -103,7 +103,7 @@ func (o *Options) ForceDeleteProjects() bool {
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
 	cliOptions := reg.apiProvider.GetCliOptions()
 	if reg.apiRegistry.Spec.Options != nil {
-		options := &Options{forceDelete: reg.apiRegistry.Spec.Options.ForceDelete}
+		options := &registryOptions{forceDelete: reg.apiRegistry.Spec.Options.ForceDelete}
 		return options
 	}
 	return cliOptions

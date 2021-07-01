@@ -417,6 +417,7 @@ func (aos *ApiObjectStore) GetScanners() []*api.Scanner {
 	return scanners
 }
 
+// GetCliOptions returns the ApiObjectStore related CLI options of an apply.
 func (apip *ApiObjectStore) GetCliOptions() globalregistry.RegistryOptions {
 	return (*ApiObjectStore)(apip).options
 }

@@ -41,7 +41,7 @@ func newProjectAPI(reg *registry) (*projectAPI, error) {
 // Create implements the globalregistry.ProjectAPI interface. Currently, it is
 // not implemented.
 func (p *projectAPI) Create(name string) (globalregistry.Project, error) {
-	return nil, fmt.Errorf("cannot create project in ACR: %w", globalregistry.ErrRecoverableError)
+	return nil, fmt.Errorf("cannot create project in ACR: %w", globalregistry.ErrNotImplemented)
 }
 
 func (p *projectAPI) GetByName(name string) (globalregistry.Project, error) {
@@ -54,7 +54,7 @@ func (p *projectAPI) GetByName(name string) (globalregistry.Project, error) {
 			return project, nil
 		}
 	}
-	return nil, fmt.Errorf("no project found to add members: %w", globalregistry.ErrRecoverableError)
+	return nil, fmt.Errorf("no project found: %w", globalregistry.ErrRecoverableError)
 }
 
 type bytesBody struct {
