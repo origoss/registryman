@@ -58,8 +58,6 @@ func (pa *projectAddAction) Perform(reg globalregistry.Registry) (SideEffect, er
 	switch {
 	case errors.Is(err, globalregistry.ErrNotImplemented):
 		return nilEffect, nil
-	case err == nil:
-		return nilEffect, nil
 	default:
 		return nilEffect, err
 	}
