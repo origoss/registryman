@@ -19,6 +19,8 @@
 package registry
 
 import (
+	"strconv"
+
 	"github.com/go-logr/logr"
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -101,12 +103,13 @@ func (o *registryOptions) ForceDeleteProjects() bool {
 
 // GetOptions method implements the globalregistry.RegistryConfig interface.
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
-	cliOptions := reg.apiProvider.GetCliOptions()
-	if reg.apiRegistry.Spec.Options != nil {
-		options := &registryOptions{forceDelete: reg.apiRegistry.Spec.Options.ForceDelete}
-		return options
+	if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/forceDelete"]; ok {
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return &registryOptions{forceDelete: b}
+		}
 	}
-	return cliOptions
+	return reg.apiProvider.GetCliOptions()
 }
 
 // ToReal method turns the (i.e. expected) Registry value into a

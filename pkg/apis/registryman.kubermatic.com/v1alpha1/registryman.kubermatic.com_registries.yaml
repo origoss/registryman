@@ -42,17 +42,6 @@ spec:
                   endpoint, like "http://harbor.example.com:8080".
                 pattern: ^(https?|ftp)://[^\s/$.?#].[^\s]*$
                 type: string
-              options:
-                description: Options specifies different possible settings for the
-                  registry. These values will overwrite the corresponding CLI options
-                  in use.
-                properties:
-                  forceDelete:
-                    default: false
-                    description: If specified, projects can be deleted, even with
-                      repositories.
-                    type: boolean
-                type: object
               password:
                 description: Password is the password to be used during the authentication
                   at the APIEndpoint interface.

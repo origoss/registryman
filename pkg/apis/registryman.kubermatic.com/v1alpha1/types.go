@@ -79,23 +79,6 @@ type RegistrySpec struct {
 	// Role specifies whether the registry is a Global Hub or a Local
 	// registry.
 	Role string `json:"role"`
-
-	// +kubebuilder:validation:Optional
-
-	// Options specifies different possible settings for the registry.
-	// These values will overwrite the corresponding CLI options in use.
-	Options *Options `json:"options,omitempty"`
-}
-
-// Options specifies different possible settings for the registry.
-// These values will overwrite the corresponding CLI options in use.
-type Options struct {
-
-	// +kubebuilder:default=false
-	// +kubebuilder:validation:Optional
-
-	// If specified, projects can be deleted, even with repositories.
-	ForceDelete bool `json:"forceDelete"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

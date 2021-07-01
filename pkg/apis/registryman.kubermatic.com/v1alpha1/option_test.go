@@ -32,7 +32,7 @@ var _ = Describe("Options", func() {
 			Expect(err).ToNot(HaveOccurred())
 			r, ok := o.(*api.Registry)
 			Expect(ok).To(BeTrue())
-			Expect(r.Spec.Options.ForceDelete).To(BeFalse())
+			Expect(r.Annotations).To(HaveKeyWithValue("registryman.kubermatic.com/forceDelete", "false"))
 		})
 		It("gets the correct value when ForceDelete is true", func() {
 			b, err := openTestFile("test_options/local-registry-forcedelete.yaml")
@@ -42,7 +42,7 @@ var _ = Describe("Options", func() {
 			Expect(err).ToNot(HaveOccurred())
 			r, ok := o.(*api.Registry)
 			Expect(ok).To(BeTrue())
-			Expect(r.Spec.Options.ForceDelete).To(BeTrue())
+			Expect(r.Annotations).To(HaveKeyWithValue("registryman.kubermatic.com/forceDelete", "true"))
 		})
 	})
 })
