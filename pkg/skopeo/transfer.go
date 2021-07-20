@@ -17,6 +17,7 @@
 package skopeo
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 
@@ -35,21 +36,32 @@ const (
 	destinationCredentialsFlag = "--dest-creds"
 )
 
-type transfer struct {
+type authData struct {
 	username string
 	password string
+}
+type transfer struct {
+	*authData
+	cmdError  bytes.Buffer
+	cmdOutput bytes.Buffer
 }
 
 // New creates a new transfer struct.
 func New(username, password string) *transfer {
 	return &transfer{
-		username: username,
-		password: password,
+		authData: &authData{
+			username: username,
+			password: password,
+		},
 	}
 }
 
+func (t *transfer) GetCommandOutput() (string, string) {
+	return t.cmdOutput.String(), t.cmdError.String()
+}
+
 // Export exports Docker repositories from a source repository to a destination path.
-func (t *transfer) Export(source, destination string, logger logr.Logger) ([]byte, error) {
+func (t *transfer) Export(source, destination string, logger logr.Logger) error {
 	logger.Info("exporting images started")
 
 	skopeoCommand := exec.Command(
@@ -65,30 +77,28 @@ func (t *transfer) Export(source, destination string, logger logr.Logger) ([]byt
 		source,
 		destination,
 	)
+	skopeoCommand.Stderr = &t.cmdError
+	skopeoCommand.Stdout = &t.cmdOutput
 
-	return skopeoCommand.CombinedOutput()
+	return skopeoCommand.Run()
 }
 
 // Import imports Docker repositories from a source path to a destination repository.
-// func (t *transfer) Import(source, destination string, logger logr.Logger) error {
-// 	logger.Info("importing images started")
+func (t *transfer) Import(source, destination string, logger logr.Logger) error {
+	logger.Info("importing images started")
 
-// 	err := syncImages(&transferData{
-// 		sourcePath:           source,
-// 		destinationPath:      destination,
-// 		sourceCtx:            t.dirCtx,
-// 		destinationCtx:       t.dockerCtx,
-// 		sourceTransport:      directory.Transport.Name(),
-// 		destinationTransport: docker.Transport.Name(),
-// 		scoped:               false,
-// 	})
+	// err := syncImages(&transferData{
+	// 	sourcePath:           source,
+	// 	destinationPath:      destination,
+	// 	sourceCtx:            t.dirCtx,
+	// 	destinationCtx:       t.dockerCtx,
+	// 	sourceTransport:      directory.Transport.Name(),
+	// 	destinationTransport: docker.Transport.Name(),
+	// 	scoped:               false,
+	// })
 
-// 	if err != nil {
-// 		return fmt.Errorf("syncing images failed: %w", err)
-// 	}
-
-// 	return nil
-// }
+	return nil
+}
 
 // Sync synchronizes Docker repositories from a source repository to a destination repository.
 // func (t *transfer) Sync(sourceRepo, destinationRepo string, logger logr.Logger) error {

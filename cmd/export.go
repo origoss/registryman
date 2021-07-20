@@ -65,13 +65,15 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		for _, repoName := range repositories {
 			repoFullPath := fmt.Sprintf("%s/%s", projectFullPath, repoName)
 			logger.Info("exporting repository", "path", repoFullPath)
-			output, err := transfer.Export(repoFullPath, destinationPath, logger)
+			err := transfer.Export(repoFullPath, destinationPath, logger)
 
-			fmt.Println(string(output))
+			stdOut, stdErr := transfer.GetCommandOutput()
 			if err != nil {
+				logger.Error(err, stdErr)
 				return err
 			}
 
+			logger.Info(stdOut)
 		}
 		logger.Info("exporting project finished", "result path", destinationPath)
 		return nil
