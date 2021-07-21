@@ -17,68 +17,73 @@
 package skopeo
 
 import (
-	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/go-logr/logr"
+
+	_ "embed"
 )
 
 const (
-	skopeCommandName           = "skopeo"
 	syncCommand                = "sync"
-	sourceFlag                 = "--src"
-	destinationFlag            = "--dest"
+	sourceTransportFlag        = "--src"
+	destinationTransportFlag   = "--dest"
 	dockerTransport            = "docker"
 	directoryTransport         = "dir"
 	scopedFlag                 = "--scoped"
-	souceCredentialsFlag       = "--src-creds"
+	sourceCredentialsFlag      = "--src-creds"
 	destinationCredentialsFlag = "--dest-creds"
 )
 
-type authData struct {
+//go:embed skopeo
+var skopeoBinary []byte
+
+type transfer struct {
 	username string
 	password string
-}
-type transfer struct {
-	*authData
-	cmdError  bytes.Buffer
-	cmdOutput bytes.Buffer
 }
 
 // New creates a new transfer struct.
 func New(username, password string) *transfer {
 	return &transfer{
-		authData: &authData{
-			username: username,
-			password: password,
-		},
+		username: username,
+		password: password,
 	}
-}
-
-func (t *transfer) GetCommandOutput() (string, string) {
-	return t.cmdOutput.String(), t.cmdError.String()
 }
 
 // Export exports Docker repositories from a source repository to a destination path.
 func (t *transfer) Export(source, destination string, logger logr.Logger) error {
 	logger.Info("exporting images started")
 
+	// TODO: About in-memory execution:
+	// https://www.reddit.com/r/golang/comments/llv8da/go_116_embed_and_execute_binary_files/
+	commandPath := "registryman-skopeo"
+	err := os.WriteFile(commandPath, skopeoBinary, 0711)
+	if err != nil {
+		return err
+	}
+
 	skopeoCommand := exec.Command(
-		skopeCommandName,
+		fmt.Sprintf("./%s", commandPath),
 		syncCommand,
-		sourceFlag,
+		sourceTransportFlag,
 		dockerTransport,
-		destinationFlag,
+		destinationTransportFlag,
 		directoryTransport,
 		scopedFlag,
-		souceCredentialsFlag,
+		sourceCredentialsFlag,
 		fmt.Sprintf("%s:%s", t.username, t.password),
 		source,
 		destination,
 	)
-	skopeoCommand.Stderr = &t.cmdError
-	skopeoCommand.Stdout = &t.cmdOutput
+
+	// TODO: remove this in prod!
+	logger.Info(skopeoCommand.String())
+
+	skopeoCommand.Stderr = os.Stderr
+	skopeoCommand.Stdout = os.Stdout
 
 	return skopeoCommand.Run()
 }
@@ -99,23 +104,3 @@ func (t *transfer) Import(source, destination string, logger logr.Logger) error 
 
 	return nil
 }
-
-// Sync synchronizes Docker repositories from a source repository to a destination repository.
-// func (t *transfer) Sync(sourceRepo, destinationRepo string, logger logr.Logger) error {
-// 	logger.Info("syncing images started")
-// 	err := syncImages(&transferData{
-// 		sourcePath:           sourceRepo,
-// 		destinationPath:      destinationRepo,
-// 		sourceCtx:            t.dockerCtx,
-// 		destinationCtx:       t.dockerCtx,
-// 		sourceTransport:      docker.Transport.Name(),
-// 		destinationTransport: docker.Transport.Name(),
-// 		scoped:               false,
-// 	})
-
-// 	if err != nil {
-// 		return fmt.Errorf("syncing images failed: %w", err)
-// 	}
-
-// 	return nil
-// }

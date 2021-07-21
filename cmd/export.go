@@ -67,13 +67,10 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 			logger.Info("exporting repository", "path", repoFullPath)
 			err := transfer.Export(repoFullPath, destinationPath, logger)
 
-			stdOut, stdErr := transfer.GetCommandOutput()
 			if err != nil {
-				logger.Error(err, stdErr)
 				return err
 			}
 
-			logger.Info(stdOut)
 		}
 		logger.Info("exporting project finished", "result path", destinationPath)
 		return nil
