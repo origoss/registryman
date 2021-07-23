@@ -55,7 +55,10 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		if err != nil {
 			return err
 		}
-		transfer := skopeo.New(project.Registry.GetUsername(), project.Registry.GetPassword())
+		transfer, err := skopeo.New(project.Registry.GetUsername(), project.Registry.GetPassword())
+		if err != nil {
+			return err
+		}
 
 		repositories, err := project.Project.GetRepositories()
 		if err != nil {
@@ -80,5 +83,5 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 func init() {
 	rootCmd.AddCommand(exportCmd)
 
-	exportCmd.PersistentFlags().StringVarP(&destinationPath, "output", "o", "./exported-registry", "The path for the saved repositories")
+	exportCmd.PersistentFlags().StringVarP(&destinationPath, "output", "o", "./exported-repositories", "The path for the saved repositories")
 }

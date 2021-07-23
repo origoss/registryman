@@ -27,6 +27,8 @@ import (
 )
 
 const (
+	commandPath = "registryman-skopeo"
+
 	syncCommand                = "sync"
 	sourceTransportFlag        = "--src"
 	destinationTransportFlag   = "--dest"
@@ -45,25 +47,22 @@ type transfer struct {
 	password string
 }
 
+// TODO: create job with kubernetes lib + common interface
 // New creates a new transfer struct.
-func New(username, password string) *transfer {
+func New(username, password string) (*transfer, error) {
+	err := os.WriteFile(commandPath, skopeoBinary, 0711)
+	if err != nil {
+		return nil, err
+	}
 	return &transfer{
 		username: username,
 		password: password,
-	}
+	}, nil
 }
 
 // Export exports Docker repositories from a source repository to a destination path.
 func (t *transfer) Export(source, destination string, logger logr.Logger) error {
 	logger.Info("exporting images started")
-
-	// TODO: About in-memory execution:
-	// https://www.reddit.com/r/golang/comments/llv8da/go_116_embed_and_execute_binary_files/
-	commandPath := "registryman-skopeo"
-	err := os.WriteFile(commandPath, skopeoBinary, 0711)
-	if err != nil {
-		return err
-	}
 
 	skopeoCommand := exec.Command(
 		fmt.Sprintf("./%s", commandPath),
@@ -92,15 +91,24 @@ func (t *transfer) Export(source, destination string, logger logr.Logger) error 
 func (t *transfer) Import(source, destination string, logger logr.Logger) error {
 	logger.Info("importing images started")
 
-	// err := syncImages(&transferData{
-	// 	sourcePath:           source,
-	// 	destinationPath:      destination,
-	// 	sourceCtx:            t.dirCtx,
-	// 	destinationCtx:       t.dockerCtx,
-	// 	sourceTransport:      directory.Transport.Name(),
-	// 	destinationTransport: docker.Transport.Name(),
-	// 	scoped:               false,
-	// })
+	skopeoCommand := exec.Command(
+		fmt.Sprintf("./%s", commandPath),
+		syncCommand,
+		sourceTransportFlag,
+		directoryTransport,
+		destinationTransportFlag,
+		dockerTransport,
+		destinationCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		source,
+		destination,
+	)
 
-	return nil
+	// TODO: remove this in prod!
+	logger.Info(skopeoCommand.String())
+
+	skopeoCommand.Stderr = os.Stderr
+	skopeoCommand.Stdout = os.Stdout
+
+	return skopeoCommand.Run()
 }
