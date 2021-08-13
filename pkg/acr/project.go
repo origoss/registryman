@@ -42,10 +42,10 @@ func (p *project) Delete() error {
 		return err
 	}
 	reposOfProject := p.api.collectReposOfProject(p.name, repoNames)
-	if len(reposOfProject) == 0 {
+	if len(reposOfProject) != 0 {
 		switch opt := p.api.reg.GetOptions().(type) {
 		case globalregistry.CanForceDelete:
-			if f := opt.ForceDeleteProjects(); !f {
+			if !opt.ForceDeleteProjects() {
 				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.GetName(), globalregistry.ErrRecoverableError)
 			}
 			for _, repo := range repoNames {
@@ -57,6 +57,8 @@ func (p *project) Delete() error {
 					return err
 				}
 			}
+		default:
+			return globalregistry.ErrNotImplemented
 		}
 	}
 	return nil
@@ -78,7 +80,7 @@ func (p *project) UnassignMember(member globalregistry.ProjectMember) error {
 
 // AssignReplicationRule implements the globalregistry.Project interface.
 // Currently, it is not implemented.
-func (p *project) AssignReplicationRule(remoteReg globalregistry.RegistryConfig, trigger globalregistry.ReplicationTrigger, direction globalregistry.ReplicationDirection) (globalregistry.ReplicationRule, error) {
+func (p *project) AssignReplicationRule(remoteReg globalregistry.RegistryConfig, trigger, direction string) (globalregistry.ReplicationRule, error) {
 	return nil, fmt.Errorf("cannot assign the replication rule to a project in ACR: %w", globalregistry.ErrNotImplemented)
 }
 
@@ -87,9 +89,7 @@ func (p *project) GetMembers() ([]globalregistry.ProjectMember, error) {
 	return []globalregistry.ProjectMember{}, nil
 }
 
-func (p *project) GetReplicationRules(
-	trigger *globalregistry.ReplicationTrigger,
-	direction *globalregistry.ReplicationDirection) ([]globalregistry.ReplicationRule, error) {
+func (p *project) GetReplicationRules(trigger, direction string) ([]globalregistry.ReplicationRule, error) {
 
 	return nil, nil
 }
