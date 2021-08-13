@@ -25,8 +25,10 @@ type JobParams struct {
 	KubeConfig string
 }
 
+// Customizable cron-job
 func CreateJob(cmdParams *JobParams) {
 	jobName := fmt.Sprintf("%s-%s", cmdParams.CmdType, "job")
+	// skopeo image
 	containerImage := "ubuntu:latest"
 	entryCommand := []string{}
 	entryCommand = append(entryCommand, cmdParams.CmdType, cmdParams.ProjectName, cmdParams.ConfigPath)
@@ -62,36 +64,42 @@ func connectToK8s(customPath string) *kubernetes.Clientset {
 }
 
 func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string, cmd *[]string) {
-	jobs := clientset.BatchV1().Jobs("default")
+	//jobs := clientset.BatchV1().Jobs("default")
+	jobs := clientset.BatchV1().CronJobs("default")
 	var backOffLimit int32 = 0
 
-	jobSpec := &batchv1.Job{
+	cronJobSpec := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: "default",
+			Name: jobName,
 		},
-		Spec: batchv1.JobSpec{
-			Template: v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:    jobName,
-							Image:   image,
-							Command: *cmd,
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								{
+									Name:    jobName,
+									Image:   image,
+									Command: *cmd,
+								},
+							},
+							RestartPolicy: v1.RestartPolicyNever,
 						},
 					},
-					RestartPolicy: v1.RestartPolicyNever,
+					BackoffLimit: &backOffLimit,
 				},
 			},
-			BackoffLimit: &backOffLimit,
+			Schedule:          "0 * * * *",
+			ConcurrencyPolicy: batchv1.ForbidConcurrent,
 		},
 	}
 
-	_, err := jobs.Create(context.TODO(), jobSpec, metav1.CreateOptions{})
+	_, err := jobs.Create(context.TODO(), cronJobSpec, metav1.CreateOptions{})
 	if err != nil {
-		log.Fatalln("Failed to create K8s job.")
+		log.Fatalln("Failed to create K8s cron-job.")
 	}
 
 	//print job details
-	log.Println("Created K8s job successfully")
+	log.Println("Created K8s cron-job successfully")
 }
