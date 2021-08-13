@@ -3,11 +3,10 @@ module github.com/kubermatic-labs/registryman
 go 1.16
 
 require (
-	github.com/containers/image/v5 v5.13.2
-	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/google/uuid v1.2.0 // indirect
+	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/onsi/ginkgo v1.16.4
