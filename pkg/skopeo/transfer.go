@@ -48,8 +48,8 @@ type transfer struct {
 }
 
 // TODO: create job with kubernetes lib + common interface
-// New creates a new transfer struct.
-func New(username, password string) (*transfer, error) {
+// NewForCli creates a new transfer struct.
+func NewForCli(username, password string) (*transfer, error) {
 	err := os.WriteFile(commandPath, skopeoBinary, 0711)
 	if err != nil {
 		return nil, err
@@ -60,11 +60,18 @@ func New(username, password string) (*transfer, error) {
 	}, nil
 }
 
+func NewForOperator(username, password string) *transfer {
+	return &transfer{
+		username: username,
+		password: password,
+	}
+}
+
 // Export exports Docker repositories from a source repository to a destination path.
-func (t *transfer) Export(source, destination string, logger logr.Logger) error {
+func (t *transfer) Export(source, destination string, logger logr.Logger) *exec.Cmd {
 	logger.Info("exporting images started")
 
-	skopeoCommand := exec.Command(
+	return exec.Command(
 		fmt.Sprintf("./%s", commandPath),
 		syncCommand,
 		sourceTransportFlag,
@@ -77,21 +84,13 @@ func (t *transfer) Export(source, destination string, logger logr.Logger) error 
 		source,
 		destination,
 	)
-
-	// TODO: remove this in prod!
-	logger.Info(skopeoCommand.String())
-
-	skopeoCommand.Stderr = os.Stderr
-	skopeoCommand.Stdout = os.Stdout
-
-	return skopeoCommand.Run()
 }
 
 // Import imports Docker repositories from a source path to a destination repository.
-func (t *transfer) Import(source, destination string, logger logr.Logger) error {
+func (t *transfer) Import(source, destination string, logger logr.Logger) *exec.Cmd {
 	logger.Info("importing images started")
 
-	skopeoCommand := exec.Command(
+	return exec.Command(
 		fmt.Sprintf("./%s", commandPath),
 		syncCommand,
 		sourceTransportFlag,
@@ -103,12 +102,25 @@ func (t *transfer) Import(source, destination string, logger logr.Logger) error 
 		source,
 		destination,
 	)
+}
 
-	// TODO: remove this in prod!
-	logger.Info(skopeoCommand.String())
+func (t *transfer) Sync(source, destination string, destCredentials *[]string, logger logr.Logger) *exec.Cmd {
+	if logger != nil {
+		logger.Info("syncing images started")
+	}
 
-	skopeoCommand.Stderr = os.Stderr
-	skopeoCommand.Stdout = os.Stdout
-
-	return skopeoCommand.Run()
+	return exec.Command(
+		fmt.Sprintf("./%s", commandPath),
+		syncCommand,
+		sourceTransportFlag,
+		dockerTransport,
+		destinationTransportFlag,
+		dockerTransport,
+		sourceCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		destinationCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		source,
+		destination,
+	)
 }

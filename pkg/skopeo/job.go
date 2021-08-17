@@ -26,18 +26,27 @@ type JobParams struct {
 }
 
 // Customizable cron-job
-func CreateJob(cmdParams *JobParams) {
+func CreateJob(cmdParams *JobParams) error {
 	jobName := fmt.Sprintf("%s-%s", cmdParams.CmdType, "job")
 	// skopeo image
 	containerImage := "ubuntu:latest"
 	entryCommand := []string{}
 	entryCommand = append(entryCommand, cmdParams.CmdType, cmdParams.ProjectName, cmdParams.ConfigPath)
 
-	clientSet := connectToK8s(cmdParams.KubeConfig)
+	clientSet, err := connectToK8s(cmdParams.KubeConfig)
+	if err != nil {
+		return err
+	}
+
 	launchK8sJob(clientSet, jobName, containerImage, &entryCommand)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func connectToK8s(customPath string) *kubernetes.Clientset {
+func connectToK8s(customPath string) (*kubernetes.Clientset, error) {
 	home, exists := os.LookupEnv("HOME")
 	if !exists {
 		home = "/root"
@@ -52,18 +61,18 @@ func connectToK8s(customPath string) *kubernetes.Clientset {
 
 	config, err := clientcmd.BuildConfigFromFlags("", configPath)
 	if err != nil {
-		log.Panicln("failed to create K8s config")
+		return nil, fmt.Errorf("failed to create K8s config")
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Panicln("Failed to create K8s clientset")
+		return nil, fmt.Errorf("failed to create K8s clientset")
 	}
 
-	return clientset
+	return clientset, nil
 }
 
-func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string, cmd *[]string) {
+func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string, cmd *[]string) error {
 	//jobs := clientset.BatchV1().Jobs("default")
 	jobs := clientset.BatchV1().CronJobs("default")
 	var backOffLimit int32 = 0
@@ -97,9 +106,10 @@ func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string,
 
 	_, err := jobs.Create(context.TODO(), cronJobSpec, metav1.CreateOptions{})
 	if err != nil {
-		log.Fatalln("Failed to create K8s cron-job.")
+		return fmt.Errorf("failed to create K8s cron-job")
 	}
 
 	//print job details
-	log.Println("Created K8s cron-job successfully")
+	log.Println("created K8s cron-job successfully")
+	return nil
 }

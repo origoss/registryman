@@ -46,9 +46,7 @@ to quickly create a Cobra application.`,
 			KubeConfig: kubeConfig,
 		}
 
-		skopeo.CreateJob(jobParams)
-
-		return nil
+		return skopeo.CreateJob(jobParams)
 	},
 }
 

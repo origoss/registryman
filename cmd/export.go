@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -26,6 +27,10 @@ import (
 )
 
 var destinationPath string
+
+// TODO: reconciler pkg/ replicationrulestatus.go -> Perform (ruleadd and ruleremove)
+// Change AssignReplicationRule to CronJob
+// Or separate interfaces for CronJobs
 
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
@@ -56,7 +61,7 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		if err != nil {
 			return err
 		}
-		transfer, err := skopeo.New(project.Registry.GetUsername(), project.Registry.GetPassword())
+		transfer, err := skopeo.NewForCli(project.Registry.GetUsername(), project.Registry.GetPassword())
 		if err != nil {
 			return err
 		}
@@ -73,13 +78,19 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		for _, repoName := range repositories {
 			repoFullPath := fmt.Sprintf("%s/%s", projectFullPath, repoName)
 			logger.Info("exporting repository", "path", repoFullPath)
-			err := transfer.Export(repoFullPath, destinationPath, logger)
+			skopeoCommand := transfer.Export(repoFullPath, destinationPath, logger)
 
-			if err != nil {
+			skopeoCommand.Stderr = os.Stderr
+			skopeoCommand.Stdout = os.Stdout
+
+			// TODO: remove this in prod!
+			logger.Info(skopeoCommand.String())
+
+			if err := skopeoCommand.Run(); err != nil {
 				return err
 			}
-
 		}
+
 		logger.Info("exporting project finished", "result path", destinationPath)
 		return nil
 	},

@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
@@ -56,14 +57,21 @@ the URL of the registry, where the repository will be pushed.
 			return err
 		}
 
-		transfer, err := skopeo.New(project.Registry.GetUsername(), project.Registry.GetPassword())
+		transfer, err := skopeo.NewForCli(project.Registry.GetUsername(), project.Registry.GetPassword())
 		if err != nil {
 			return err
 		}
 
 		sourceDirectoryPath := fmt.Sprintf("%s/%s", sourcePath, projectDestinationFullPath)
 
-		if err := transfer.Import(sourceDirectoryPath, projectDestinationFullPath, logger); err != nil {
+		skopeoCommand := transfer.Import(sourceDirectoryPath, projectDestinationFullPath, logger)
+		skopeoCommand.Stderr = os.Stderr
+		skopeoCommand.Stdout = os.Stdout
+
+		// TODO: remove this in prod!
+		logger.Info(skopeoCommand.String())
+
+		if err := skopeoCommand.Run(); err != nil {
 			return err
 		}
 		logger.Info("importing project finished", "project name", projectName)

@@ -21,6 +21,7 @@ import (
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
+	"github.com/kubermatic-labs/registryman/pkg/cronjob"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -56,8 +57,19 @@ func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, erro
 		return nilEffect, nil
 	}
 	_, err = replicationRuleManipulatorProject.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+	// TODO: Separate implementation for cj?
+	//_, err = project.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+
+	cronJobFactory := cronjob.NewCjFactory(reg, project)
+	cronJobFactory.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+
 	return nilEffect, err
 }
+
+// func (cj *cronJob) Perform(reg globalregistry.Registry) (SideEffect, error) {
+
+// 	return nilEffect, nil
+// }
 
 type rRuleRemoveAction struct {
 	api.ReplicationRuleStatus
