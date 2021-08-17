@@ -41,12 +41,12 @@ the URL of the registry, where the repository will be pushed.
 
 		config.SetLogger(logger)
 
-		manifests, err := config.ReadManifests(configDir, nil)
+		aos, err := config.ReadLocalManifests(configDir, nil)
 		if err != nil {
 			return err
 		}
 
-		project, err := manifests.GetProjectByName(projectName)
+		project, err := config.GetProjectByName(aos, projectName)
 		if err != nil {
 			return err
 		}
