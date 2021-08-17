@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
+	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
 	"github.com/spf13/cobra"
 )
@@ -41,12 +42,12 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		logger.Info("reading config files", "dir", configDir)
 		config.SetLogger(logger)
 
-		manifests, err := config.ReadManifests(configDir, nil)
+		aos, err := config.ReadLocalManifests(configDir, nil)
 		if err != nil {
 			return err
 		}
 
-		project, err := manifests.GetProjectByName(projectName)
+		project, err := config.GetProjectByName(aos, projectName)
 		if err != nil {
 			return err
 		}
@@ -60,7 +61,11 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 			return err
 		}
 
-		repositories, err := project.Project.GetRepositories()
+		projectWithRepositories, ok := project.Project.(globalregistry.ProjectWithRepositories)
+		if !ok {
+			return fmt.Errorf("%s does not have repositories", projectFullPath)
+		}
+		repositories, err := projectWithRepositories.GetRepositories()
 		if err != nil {
 			return err
 		}

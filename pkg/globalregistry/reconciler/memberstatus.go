@@ -23,7 +23,7 @@ import (
 
 	"encoding/base64"
 
-	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman.kubermatic.com/v1alpha1"
+	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,8 +95,8 @@ type persistMemberCredentials struct {
 var _ SideEffect = &persistMemberCredentials{}
 
 type manifestManipulator interface {
-	WriteManifest(filename string, obj runtime.Object) error
-	RemoveManifest(filename string) error
+	WriteResource(obj runtime.Object) error
+	RemoveResource(obj runtime.Object) error
 }
 
 func (pmc *persistMemberCredentials) Perform(ctx context.Context) error {
@@ -130,22 +130,22 @@ func (pmc *persistMemberCredentials) Perform(ctx context.Context) error {
 		},
 		Type: "kubernetes.io/dockerconfigjson",
 	}
-	secret.SetName(pmc.action.Name)
+	name := fmt.Sprintf("%s---%s---%s---creds",
+		pmc.registry.GetName(),
+		pmc.action.projectName,
+		pmc.action.Name,
+	)
+	secret.SetName(name)
 	secret.SetAnnotations(map[string]string{
 		"globalregistry.org/project-name":  pmc.action.projectName,
 		"globalregistry.org/registry-name": pmc.registry.GetName(),
 	})
 
-	filename := fmt.Sprintf("%s_%s_%s_creds.yaml",
-		pmc.registry.GetName(),
-		pmc.action.projectName,
-		pmc.action.Name,
-	)
-	return manifestManipulator.WriteManifest(filename, secret)
+	return manifestManipulator.WriteResource(secret)
 }
 
 func (ma *memberAddAction) Perform(reg globalregistry.Registry) (SideEffect, error) {
-	project, err := reg.ProjectAPI().GetByName(ma.projectName)
+	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ma.projectName)
 	if err != nil {
 		return nilEffect, err
 	}
@@ -153,7 +153,12 @@ func (ma *memberAddAction) Perform(reg globalregistry.Registry) (SideEffect, err
 		// project not found
 		return nilEffect, fmt.Errorf("project %s not found", ma.projectName)
 	}
-	creds, err := project.AssignMember(toProjectMember(&ma.MemberStatus))
+	memberManipulatorProject, ok := project.(globalregistry.MemberManipulatorProject)
+	if !ok {
+		// registry does not support projects with members
+		return nilEffect, nil
+	}
+	creds, err := memberManipulatorProject.AssignMember(toProjectMember(&ma.MemberStatus))
 	if err != nil {
 		return nilEffect, err
 	}
@@ -183,13 +188,19 @@ func (rmc *removeMemberCredentials) Perform(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("SideEffectManifestManipulator is not a proper manifestManipulator")
 	}
-
-	filename := fmt.Sprintf("%s_%s_%s_creds.yaml",
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+	}
+	name := fmt.Sprintf("%s---%s---%s---creds",
 		rmc.registry.GetName(),
 		rmc.action.projectName,
 		rmc.action.Name,
 	)
-	return manifestManipulator.RemoveManifest(filename)
+	secret.SetName(name)
+	return manifestManipulator.RemoveResource(secret)
 }
 
 type memberRemoveAction struct {
@@ -205,11 +216,16 @@ func (ma *memberRemoveAction) String() string {
 }
 
 func (ma *memberRemoveAction) Perform(reg globalregistry.Registry) (SideEffect, error) {
-	project, err := reg.ProjectAPI().GetByName(ma.projectName)
+	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ma.projectName)
 	if err != nil {
 		return nilEffect, err
 	}
-	err = project.UnassignMember(toProjectMember(&ma.MemberStatus))
+	memberManipulatorProject, ok := project.(globalregistry.MemberManipulatorProject)
+	if !ok {
+		// registry does not support projects with members
+		return nilEffect, nil
+	}
+	err = memberManipulatorProject.UnassignMember(toProjectMember(&ma.MemberStatus))
 	if err != nil {
 		return nilEffect, err
 	}
@@ -225,7 +241,7 @@ func (ma *memberRemoveAction) Perform(reg globalregistry.Registry) (SideEffect, 
 // CompareMemberStatuses compares the actual and expected status of the members
 // of a project. The function returns the actions that are needed to synchronize
 // the actual state to the expected state.
-func CompareMemberStatuses(projectName string, actual, expected []api.MemberStatus) []Action {
+func CompareMemberStatuses(projectName string, actual, expected []api.MemberStatus, regCapabilities api.RegistryCapabilities) []Action {
 	actualDiff := []api.MemberStatus{}
 	expectedDiff := []api.MemberStatus{}
 ActLoop:
@@ -250,21 +266,22 @@ ExpLoop:
 	}
 	actions := make([]Action, 0)
 
-	// actualDiff contains the members which are there but are not needed
-	for _, act := range actualDiff {
-		actions = append(actions, &memberRemoveAction{
-			act,
-			projectName,
-		})
-	}
-
-	// expectedClone contains the members which are missing and thus they
-	// shall be created
-	for _, exp := range expectedDiff {
-		actions = append(actions, &memberAddAction{
-			exp,
-			projectName,
-		})
+	if regCapabilities.CanManipulateProjectMembers {
+		// actualDiff contains the members which are there but are not needed
+		for _, act := range actualDiff {
+			actions = append(actions, &memberRemoveAction{
+				act,
+				projectName,
+			})
+		}
+		// expectedClone contains the members which are missing and thus they
+		// shall be created
+		for _, exp := range expectedDiff {
+			actions = append(actions, &memberAddAction{
+				exp,
+				projectName,
+			})
+		}
 	}
 
 	return actions

@@ -13,6 +13,7 @@ require (
 	github.com/onsi/gomega v1.13.0
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/spf13/cobra v1.1.3
+	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	go.uber.org/zap v1.17.0
 	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
