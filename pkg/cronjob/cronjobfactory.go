@@ -7,6 +7,7 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
+	kubernetes "k8s.io/client-go/kubernetes"
 )
 
 type CronJobFactory struct {
@@ -16,7 +17,13 @@ type CronJobFactory struct {
 
 var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 
+const image = "registryman-skopeo:latest"
+
+var clientset *kubernetes.Clientset
+
 func NewCjFactory(source globalregistry.Registry, project globalregistry.Project) *CronJobFactory {
+	// TODO: connect to K8s -> initialize clientset
+	// clientset, err := kubernetes.NewForConfig(config)
 	return &CronJobFactory{
 		source:  source,
 		project: project,
@@ -64,20 +71,17 @@ func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.R
 		skopeoCommand.Stderr = os.Stderr
 		skopeoCommand.Stdout = os.Stdout
 
+		fmt.Println(skopeoCommand)
+
+		// Create Cron-job config using the returned skopeo sync parameters
+		// TODO: Cj config with envvars at creation time
+		cronJob := new(cjf.project.GetName(), "default", repoName, &skopeoCommand.Args, &remoteRegistry)
+
+		if err := cronJob.Deploy(); err != nil {
+			return nil, err
+		}
+
 	}
 
-	// Create Cron-job using the returned skopeo sync parameters
-	// TODO: Cj config with envvars at creation time
-
-	jobParams := &skopeo.JobParams{
-		Command: &skopeo.Command{
-			CmdType:     "sync",
-			ProjectName: project.GetName(),
-			ConfigPath:  "TODO",
-		},
-		KubeConfig: "TODO",
-	}
-
-	err = skopeo.CreateJob(jobParams)
 	return nil, nil
 }
