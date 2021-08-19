@@ -7,7 +7,10 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
+	"github.com/spf13/pflag"
 	kubernetes "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type CronJobFactory struct {
@@ -19,15 +22,44 @@ var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 
 const image = "registryman-skopeo:latest"
 
-var clientset *kubernetes.Clientset
+var clientSet *kubernetes.Clientset
+var clientConfig *rest.Config
+var kubeConfig clientcmd.ClientConfig
 
-func NewCjFactory(source globalregistry.Registry, project globalregistry.Project) *CronJobFactory {
-	// TODO: connect to K8s -> initialize clientset
-	// clientset, err := kubernetes.NewForConfig(config)
+func init() {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	// if you want to change the loading rules (which files in which order), you can do so here
+
+	configOverrides := &clientcmd.ConfigOverrides{}
+	clientcmd.BindOverrideFlags(configOverrides, pflag.CommandLine,
+		clientcmd.RecommendedConfigOverrideFlags(""))
+	// if you want to change override values or bind them to flags, there are methods to help you
+
+	kubeConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+}
+
+func connectToKube() (*kubernetes.Clientset, error) {
+	var err error
+	clientConfig, err = kubeConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	kubeClient := kubernetes.NewForConfigOrDie(clientConfig)
+	return kubeClient, nil
+}
+
+func NewCjFactory(source globalregistry.Registry, project globalregistry.Project) (*CronJobFactory, error) {
+	resultClientSet, err := connectToKube()
+	if err != nil {
+		return nil, err
+	}
+	clientSet = resultClientSet
+
 	return &CronJobFactory{
 		source:  source,
 		project: project,
-	}
+	}, nil
 }
 
 func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {

@@ -51,23 +51,20 @@ func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, erro
 	if remoteRegistry == nil {
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
-	replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
-	if !ok {
-		// registry does not support project level replication
-		return nilEffect, nil
-	}
-	_, err = replicationRuleManipulatorProject.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
-	// TODO: Separate implementation for cj?
-	//_, err = project.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+	// replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
+	// if !ok {
+	// 	// registry does not support project level replication
+	// 	return nilEffect, nil
+	// }
+	//_, err = replicationRuleManipulatorProject.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
 
-	cronJobFactory := cronjob.NewCjFactory(reg, project)
+	cronJobFactory, err := cronjob.NewCjFactory(reg, project)
 	cronJobFactory.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
 
 	return nilEffect, err
 }
 
 // func (cj *cronJob) Perform(reg globalregistry.Registry) (SideEffect, error) {
-
 // 	return nilEffect, nil
 // }
 

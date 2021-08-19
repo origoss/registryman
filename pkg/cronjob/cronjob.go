@@ -59,15 +59,14 @@ func new(projectName, nameSpace, repo string, cmd *[]string, remoteRegistry *glo
 }
 
 func (cj *CronJob) Deploy() error {
-	cronJobInterface := clientset.BatchV1().CronJobs(cj.spec.Namespace)
+	cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
 	_, err := cronJobInterface.Create(context.TODO(), cj.spec, metav1.CreateOptions{})
 	return err
 }
 
 func (cj *CronJob) Delete() error {
-	cronJobInterface := clientset.BatchV1().CronJobs(cj.spec.Namespace)
-	deleteOptions := &metav1.DeleteOptions{}
-	return cronJobInterface.Delete(context.TODO(), cj.spec.Name, *deleteOptions)
+	cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
+	return cronJobInterface.Delete(context.TODO(), cj.spec.Name, metav1.DeleteOptions{})
 }
 
 func (cj *CronJob) Direction() string {
