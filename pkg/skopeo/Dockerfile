@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.14
 WORKDIR /usr/lib
 
 COPY skopeo .
@@ -6,4 +6,4 @@ RUN apk update && \
     apk upgrade && \
     apk add skopeo
 
-ENTRYPOINT [ "/usr/bin/skopeo", "--version"]
+ENTRYPOINT [ "/usr/bin/skopeo" ]
