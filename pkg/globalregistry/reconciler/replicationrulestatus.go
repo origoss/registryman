@@ -59,7 +59,10 @@ func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, erro
 	//_, err = replicationRuleManipulatorProject.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
 
 	cronJobFactory, err := cronjob.NewCjFactory(reg, project)
-	cronJobFactory.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+	if err != nil {
+		return nilEffect, err
+	}
+	_, err = cronJobFactory.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
 
 	return nilEffect, err
 }

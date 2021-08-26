@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	commandPath = "registryman-skopeo"
+	//commandPath = "registryman-skopeo"
+	commandPath = "skopeo"
 
 	syncCommand                = "sync"
 	sourceTransportFlag        = "--src"

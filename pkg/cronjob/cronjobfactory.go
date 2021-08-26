@@ -7,7 +7,6 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
-	"github.com/spf13/pflag"
 	kubernetes "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,7 +19,8 @@ type CronJobFactory struct {
 
 var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 
-const image = "registryman-skopeo:latest"
+// TODO: change the image
+const image = "cataclyst01/skopeo:v2"
 
 var clientSet *kubernetes.Clientset
 var clientConfig *rest.Config
@@ -31,8 +31,8 @@ func init() {
 	// if you want to change the loading rules (which files in which order), you can do so here
 
 	configOverrides := &clientcmd.ConfigOverrides{}
-	clientcmd.BindOverrideFlags(configOverrides, pflag.CommandLine,
-		clientcmd.RecommendedConfigOverrideFlags(""))
+	// clientcmd.BindOverrideFlags(configOverrides, pflag.CommandLine,
+	// 	clientcmd.RecommendedConfigOverrideFlags(""))
 	// if you want to change override values or bind them to flags, there are methods to help you
 
 	kubeConfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
@@ -104,10 +104,12 @@ func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.R
 		skopeoCommand.Stdout = os.Stdout
 
 		fmt.Println(skopeoCommand)
-
+		var command []string
+		command = append(command, skopeoCommand.Args[0])
+		args := skopeoCommand.Args[1:]
 		// Create Cron-job config using the returned skopeo sync parameters
 		// TODO: Cj config with envvars at creation time
-		cronJob := new(cjf.project.GetName(), "default", repoName, &skopeoCommand.Args, &remoteRegistry)
+		cronJob := new(cjf.project.GetName(), "default", repoName, &command, &args, &remoteRegistry)
 
 		if err := cronJob.Deploy(); err != nil {
 			return nil, err

@@ -6,6 +6,7 @@ import (
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	batchv1 "k8s.io/api/batch/v1"
+	v1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,33 +15,35 @@ type CronJob struct {
 	projectName    string
 	remoteRegistry *globalregistry.Registry
 	dir            string
-	spec           *batchv1.CronJob
+	spec           *v1beta1.CronJob
 }
 
 var _ globalregistry.ReplicationRule = &CronJob{}
 
-func new(projectName, nameSpace, repo string, cmd *[]string, remoteRegistry *globalregistry.Registry) *CronJob {
+func new(projectName, nameSpace, repo string, cmd, args *[]string, remoteRegistry *globalregistry.Registry) *CronJob {
 	var backOffLimit int32 = 0
 	cronJobUniqueName := fmt.Sprintf("%s-%s-job", projectName, repo)
 
 	cronJob := &CronJob{
 		projectName:    projectName,
 		remoteRegistry: remoteRegistry,
-		spec: &batchv1.CronJob{
+		spec: &v1beta1.CronJob{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      cronJobUniqueName,
 				Namespace: nameSpace,
 			},
-			Spec: batchv1.CronJobSpec{
-				JobTemplate: batchv1.JobTemplateSpec{
+			Spec: v1beta1.CronJobSpec{
+				JobTemplate: v1beta1.JobTemplateSpec{
 					Spec: batchv1.JobSpec{
 						Template: v1.PodTemplateSpec{
 							Spec: v1.PodSpec{
 								Containers: []v1.Container{
 									{
-										Name:    cronJobUniqueName,
-										Image:   image,
-										Command: *cmd,
+										Name:  cronJobUniqueName,
+										Image: image,
+										//Command:         *cmd,
+										Args:            *args,
+										ImagePullPolicy: v1.PullAlways,
 									},
 								},
 								RestartPolicy: v1.RestartPolicyNever,
@@ -49,23 +52,52 @@ func new(projectName, nameSpace, repo string, cmd *[]string, remoteRegistry *glo
 						BackoffLimit: &backOffLimit,
 					},
 				},
-				Schedule:          "0 * * * *",
-				ConcurrencyPolicy: batchv1.ForbidConcurrent,
+				Schedule:          "*/1 * * * *",
+				ConcurrencyPolicy: v1beta1.ForbidConcurrent,
 			},
 		},
+		// spec: &batchv1.CronJob{
+		// 	ObjectMeta: metav1.ObjectMeta{
+		// 		Name:      cronJobUniqueName,
+		// 		Namespace: nameSpace,
+		// 	},
+		// 	Spec: batchv1.CronJobSpec{
+		// 		JobTemplate: batchv1.JobTemplateSpec{
+		// 			Spec: batchv1.JobSpec{
+		// 				Template: v1.PodTemplateSpec{
+		// 					Spec: v1.PodSpec{
+		// 						Containers: []v1.Container{
+		// 							{
+		// 								Name:    cronJobUniqueName,
+		// 								Image:   image,
+		// 								Command: *cmd,
+		// 							},
+		// 						},
+		// 						RestartPolicy: v1.RestartPolicyNever,
+		// 					},
+		// 				},
+		// 				BackoffLimit: &backOffLimit,
+		// 			},
+		// 		},
+		// 		Schedule:          "0 * * * *",
+		// 		ConcurrencyPolicy: batchv1.ForbidConcurrent,
+		// 	},
+		// },
 	}
 
 	return cronJob
 }
 
 func (cj *CronJob) Deploy() error {
-	cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
+	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
+	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
 	_, err := cronJobInterface.Create(context.TODO(), cj.spec, metav1.CreateOptions{})
 	return err
 }
 
 func (cj *CronJob) Delete() error {
-	cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
+	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
+	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
 	return cronJobInterface.Delete(context.TODO(), cj.spec.Name, metav1.DeleteOptions{})
 }
 
