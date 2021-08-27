@@ -67,10 +67,6 @@ func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, erro
 	return nilEffect, err
 }
 
-// func (cj *cronJob) Perform(reg globalregistry.Registry) (SideEffect, error) {
-// 	return nilEffect, nil
-// }
-
 type rRuleRemoveAction struct {
 	api.ReplicationRuleStatus
 	store       *config.ExpectedProvider

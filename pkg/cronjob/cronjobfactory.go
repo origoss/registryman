@@ -107,7 +107,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.R
 		var command []string
 		command = append(command, skopeoCommand.Args[0])
 		args := skopeoCommand.Args[1:]
-		// Create Cron-job config using the returned skopeo sync parameters
+
 		// TODO: Cj config with envvars at creation time
 		cronJob := new(cjf.project.GetName(), "default", repoName, &command, &args, &remoteRegistry)
 
