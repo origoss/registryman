@@ -17,6 +17,7 @@
 package reconciler
 
 import (
+	"context"
 	"fmt"
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
@@ -42,12 +43,12 @@ func (ra *rRuleAddAction) String() string {
 	)
 }
 
-func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, error) {
-	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ra.projectName)
+func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Registry) (SideEffect, error) {
+	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ctx, ra.projectName)
 	if err != nil {
 		return nilEffect, err
 	}
-	remoteRegistry := ra.store.GetRegistryByName(ra.RemoteRegistryName)
+	remoteRegistry := ra.store.GetRegistryByName(ctx, ra.RemoteRegistryName)
 	if remoteRegistry == nil {
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
@@ -62,7 +63,7 @@ func (ra *rRuleAddAction) Perform(reg globalregistry.Registry) (SideEffect, erro
 	if err != nil {
 		return nilEffect, err
 	}
-	_, err = cronJobFactory.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
+	_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
 
 	return nilEffect, err
 }
@@ -84,8 +85,8 @@ func (ra *rRuleRemoveAction) String() string {
 	)
 }
 
-func (ra *rRuleRemoveAction) Perform(reg globalregistry.Registry) (SideEffect, error) {
-	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ra.projectName)
+func (ra *rRuleRemoveAction) Perform(ctx context.Context, reg globalregistry.Registry) (SideEffect, error) {
+	project, err := reg.(globalregistry.RegistryWithProjects).GetProjectByName(ctx, ra.projectName)
 	if err != nil {
 		return nilEffect, err
 	}
@@ -94,7 +95,7 @@ func (ra *rRuleRemoveAction) Perform(reg globalregistry.Registry) (SideEffect, e
 		// registry does not support project level replication
 		return nilEffect, nil
 	}
-	rRules, err := projectWithReplication.GetReplicationRules(ra.Trigger, ra.Direction)
+	rRules, err := projectWithReplication.GetReplicationRules(ctx, ra.Trigger, ra.Direction)
 	if err != nil {
 		return nilEffect, err
 	}
@@ -104,7 +105,7 @@ func (ra *rRuleRemoveAction) Perform(reg globalregistry.Registry) (SideEffect, e
 			// TODO: error handling
 			continue
 		}
-		err := destructibleReplicationRule.Delete()
+		err := destructibleReplicationRule.Delete(ctx)
 		if err != nil {
 			return nilEffect, err
 		}

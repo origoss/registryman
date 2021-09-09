@@ -16,8 +16,10 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
@@ -47,7 +49,9 @@ the URL of the registry, where the repository will be pushed.
 			return err
 		}
 
-		project, err := config.GetProjectByName(aos, projectName)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		project, err := config.GetProjectByName(ctx, aos, projectName)
 		if err != nil {
 			return err
 		}

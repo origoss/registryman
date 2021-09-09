@@ -19,6 +19,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
+
+	"context"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -52,7 +55,9 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 			return err
 		}
 
-		project, err := config.GetProjectByName(aos, projectName)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		project, err := config.GetProjectByName(ctx, aos, projectName)
 		if err != nil {
 			return err
 		}
@@ -70,7 +75,7 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		if !ok {
 			return fmt.Errorf("%s does not have repositories", projectFullPath)
 		}
-		repositories, err := projectWithRepositories.GetRepositories()
+		repositories, err := projectWithRepositories.GetRepositories(ctx)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package cronjob
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -62,7 +63,7 @@ func NewCjFactory(source globalregistry.Registry, project globalregistry.Project
 	}, nil
 }
 
-func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {
+func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegistry globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {
 	transfer := skopeo.NewForOperator(cjf.source.GetUsername(), cjf.source.GetPassword())
 
 	projectOfSourceRegistry := &config.ProjectOfRegistry{
@@ -90,7 +91,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(remoteRegistry globalregistry.R
 		return nil, fmt.Errorf("%s does not have repositories", projectFullPathOfSource)
 	}
 
-	repositories, err := projectWithRepositories.GetRepositories()
+	repositories, err := projectWithRepositories.GetRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
