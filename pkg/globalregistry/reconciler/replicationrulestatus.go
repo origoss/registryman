@@ -52,19 +52,26 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 	if remoteRegistry == nil {
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
-	// replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
-	// if !ok {
-	// 	// registry does not support project level replication
-	// 	return nilEffect, nil
-	// }
-	//_, err = replicationRuleManipulatorProject.AssignReplicationRule(remoteRegistry, ra.Trigger, ra.Direction)
 
-	cronJobFactory, err := cronjob.NewCjFactory(reg, project)
-	if err != nil {
-		return nilEffect, err
+	replicationSupport, ok := reg.GetOptions().(globalregistry.CanReplicate)
+	if !ok {
+		fmt.Printf("no annotations found for replication, falling back to skopeo\n")
 	}
-	_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
 
+	if ok && replicationSupport.SupportsProjectReplication() == "registry" {
+		replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
+		if !ok {
+			// registry does not support project level replication
+			return nilEffect, nil
+		}
+		_, err = replicationRuleManipulatorProject.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+	} else {
+		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
+		if err != nil {
+			return nilEffect, err
+		}
+		_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+	}
 	return nilEffect, err
 }
 

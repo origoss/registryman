@@ -20,7 +20,7 @@ type CronJob struct {
 
 var _ globalregistry.ReplicationRule = &CronJob{}
 
-func new(projectName, nameSpace, repo string, cmd, args *[]string, remoteRegistry *globalregistry.Registry) *CronJob {
+func new(projectName, nameSpace, repo string, cmd string, args *[]string, remoteRegistry *globalregistry.Registry) *CronJob {
 	var backOffLimit int32 = 0
 	cronJobUniqueName := fmt.Sprintf("%s-%s-job", projectName, repo)
 
@@ -86,19 +86,20 @@ func new(projectName, nameSpace, repo string, cmd, args *[]string, remoteRegistr
 	}
 
 	return cronJob
+	// TODO: Go converter package for dynamic cronjob version generation
 }
 
-func (cj *CronJob) Deploy() error {
+func (cj *CronJob) Deploy(ctx context.Context) error {
 	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
 	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
-	_, err := cronJobInterface.Create(context.TODO(), cj.spec, metav1.CreateOptions{})
+	_, err := cronJobInterface.Create(ctx, cj.spec, metav1.CreateOptions{})
 	return err
 }
 
-func (cj *CronJob) Delete() error {
+func (cj *CronJob) Delete(ctx context.Context) error {
 	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
 	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
-	return cronJobInterface.Delete(context.TODO(), cj.spec.Name, metav1.DeleteOptions{})
+	return cronJobInterface.Delete(ctx, cj.spec.Name, metav1.DeleteOptions{})
 }
 
 func (cj *CronJob) Direction() string {

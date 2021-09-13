@@ -105,14 +105,14 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 		skopeoCommand.Stdout = os.Stdout
 
 		fmt.Println(skopeoCommand)
-		var command []string
-		command = append(command, skopeoCommand.Args[0])
+
+		command := skopeoCommand.Args[0]
 		args := skopeoCommand.Args[1:]
 
 		// TODO: Cj config with envvars at creation time
-		cronJob := new(cjf.project.GetName(), "default", repoName, &command, &args, &remoteRegistry)
+		cronJob := new(cjf.project.GetName(), "default", repoName, command, &args, &remoteRegistry)
 
-		if err := cronJob.Deploy(); err != nil {
+		if err := cronJob.Deploy(ctx); err != nil {
 			return nil, err
 		}
 

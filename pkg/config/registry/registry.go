@@ -82,13 +82,19 @@ func (reg *Registry) GetPassword() string {
 
 type registryOptions struct {
 	forceDelete bool
+	replication globalregistry.ReplicationType
 }
 
 var _ globalregistry.CanForceDelete = &registryOptions{}
+var _ globalregistry.CanReplicate = &registryOptions{}
 
 // ForceDeleteProjects returns with the value of the force-delete option.
 func (o *registryOptions) ForceDeleteProjects() bool {
 	return o.forceDelete
+}
+
+func (o *registryOptions) SupportsProjectReplication() globalregistry.ReplicationType {
+	return o.replication
 }
 
 // GetOptions method implements the globalregistry.RegistryConfig interface. The
@@ -99,15 +105,28 @@ func (o *registryOptions) ForceDeleteProjects() bool {
 // Supported annotations:
 // - registryman.kubermatic.com/forceDelete: <bool_as_string>
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
-	if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/forceDelete"]; ok {
-		b, err := strconv.ParseBool(val)
-		if err != nil {
-			reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/forceDelete annotation, expected \"true\" or \"false\"",
-				"registry", reg.apiRegistry.GetName(),
-				"value", val)
-			return &registryOptions{forceDelete: false}
+	if len(reg.apiRegistry.Annotations) != 0 {
+		options := &registryOptions{}
+		if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/forceDelete"]; ok {
+			b, err := strconv.ParseBool(val)
+			if err != nil {
+				reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/forceDelete annotation, expected \"true\" or \"false\"",
+					"registry", reg.apiRegistry.GetName(),
+					"value", val)
+				options.forceDelete = false
+			}
+			options.forceDelete = b
 		}
-		return &registryOptions{forceDelete: b}
+		if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/replication"]; ok {
+			if val != string(globalregistry.RegistryReplication) && val != string(globalregistry.SkopeoReplication) {
+				reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/replication annotation, expected \"registry\" or \"skopeo\"",
+					"registry", reg.apiRegistry.GetName(),
+					"value", val)
+				options.replication = "registry"
+			}
+			options.replication = globalregistry.ReplicationType(val)
+		}
+		return options
 	}
 	return reg.apiProvider.GetGlobalRegistryOptions()
 }
