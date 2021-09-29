@@ -58,6 +58,7 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 		fmt.Printf("no annotations found for replication, falling back to skopeo\n")
 	}
 
+	// TODO: switch cases
 	if ok && replicationSupport.SupportsProjectReplication() == "registry" {
 		replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
 		if !ok {
@@ -65,14 +66,22 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 			return nilEffect, nil
 		}
 		_, err = replicationRuleManipulatorProject.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+		if err != nil {
+			return nilEffect, err
+		}
 	} else {
 		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
 		if err != nil {
 			return nilEffect, err
 		}
+		currentCjs, err := cronJobFactory.GetAllCronJobs(reg.GetName(), ctx)
+		fmt.Println(currentCjs)
 		_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+		if err != nil {
+			return nilEffect, err
+		}
 	}
-	return nilEffect, err
+	return nilEffect, nil
 }
 
 type rRuleRemoveAction struct {
