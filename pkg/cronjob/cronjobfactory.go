@@ -8,6 +8,8 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
+	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -21,7 +23,8 @@ type CronJobFactory struct {
 var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 
 // TODO: change the image
-const image = "cataclyst01/skopeo:v2"
+// const image = "cataclyst01/skopeo:v1"
+const image = "quay.io/skopeo/stable"
 
 var clientSet *kubernetes.Clientset
 var clientConfig *rest.Config
@@ -96,27 +99,65 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 		return nil, err
 	}
 
+	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, &[]string{remoteRegistry.GetUsername(), remoteRegistry.GetPassword()}, nil)
+	fmt.Println(skopeoCommand)
+
+	skopeoCommand.Stderr = os.Stderr
+	skopeoCommand.Stdout = os.Stdout
+
+	scriptContents := fmt.Sprintf("%s%s\n%s",
+		`repoArray=(${REPOSITORIES})
+for repo in "${repoArray[@]}"
+do
+	`, concatenateArrayOfStrings(skopeoCommand.Args), "done")
+
+	var fullPathOfSourceRepositories []string
+
 	for _, repoName := range repositories {
 		repoFullPathOfSource := fmt.Sprintf("%s/%s", projectFullPathOfSource, repoName)
+		fullPathOfSourceRepositories = append(fullPathOfSourceRepositories, repoFullPathOfSource)
+	}
 
-		skopeoCommand := transfer.Sync(repoFullPathOfSource, projectFullPathOfDestination, &[]string{remoteRegistry.GetUsername(), remoteRegistry.GetPassword()}, nil)
+	finalArgs := []string{"-c", scriptContents}
 
-		skopeoCommand.Stderr = os.Stderr
-		skopeoCommand.Stdout = os.Stdout
+	cronJob := new(cjf, concatenateArrayOfStrings(fullPathOfSourceRepositories), remoteRegistry, finalArgs)
 
-		fmt.Println(skopeoCommand)
-
-		command := skopeoCommand.Args[0]
-		args := skopeoCommand.Args[1:]
-
-		// TODO: Cj config with envvars at creation time
-		cronJob := new(cjf.project.GetName(), "default", repoName, command, &args, &remoteRegistry)
-
-		if err := cronJob.Deploy(ctx); err != nil {
-			return nil, err
+	if err := cronJob.Deploy(ctx); err != nil {
+		if err.(*errors.StatusError).Status().Reason == "AlreadyExists" {
+			fmt.Printf("cronjob already exists for project %s\n", cjf.project.GetName())
 		}
-
+		return nil, err
 	}
 
 	return nil, nil
+}
+
+func (cjf *CronJobFactory) GetAllCronJobs(registryName string, ctx context.Context) (*[]CronJob, error) {
+	cronJobList, err := clientSet.BatchV1beta1().CronJobs(registryName).List(ctx, v1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var results []CronJob
+	for _, cj := range cronJobList.Items {
+		cjObject := CronJob{
+			resource: &cj,
+		}
+		results = append(results, cjObject)
+	}
+
+	return &results, nil
+}
+
+func concatenateArrayOfStrings(arg []string) string {
+	result := ""
+	for i, word := range arg {
+		if i != 0 {
+			result = fmt.Sprintf("%s %s", result, word)
+		} else {
+			result = fmt.Sprintf("%s%s", result, word)
+		}
+	}
+	return result
 }

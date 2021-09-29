@@ -12,25 +12,34 @@ import (
 )
 
 type CronJob struct {
-	projectName    string
-	remoteRegistry *globalregistry.Registry
+	remoteRegistry globalregistry.Registry
 	dir            string
-	spec           *v1beta1.CronJob
+	resource       *v1beta1.CronJob
 }
 
 var _ globalregistry.ReplicationRule = &CronJob{}
 
-func new(projectName, nameSpace, repo string, cmd string, args *[]string, remoteRegistry *globalregistry.Registry) *CronJob {
+func new(cronJobFactory *CronJobFactory, repositories string, remoteRegistry globalregistry.Registry, args []string) *CronJob {
 	var backOffLimit int32 = 0
-	cronJobUniqueName := fmt.Sprintf("%s-%s-job", projectName, repo)
+	//volumeName := "skopeo-script"
+	cronJobUniqueName := fmt.Sprintf("%s-job", cronJobFactory.project.GetName())
+
+	envVar := v1.EnvVar{
+		Name:  "REPOSITORIES",
+		Value: repositories,
+	}
 
 	cronJob := &CronJob{
-		projectName:    projectName,
 		remoteRegistry: remoteRegistry,
-		spec: &v1beta1.CronJob{
+		resource: &v1beta1.CronJob{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      cronJobUniqueName,
-				Namespace: nameSpace,
+				Namespace: cronJobFactory.source.GetName(),
+				Labels: map[string]string{
+					"source":          "registryman-skopeo",
+					"project":         cronJobFactory.project.GetName(),
+					"remote-registry": remoteRegistry.GetName(),
+				},
 			},
 			Spec: v1beta1.CronJobSpec{
 				JobTemplate: v1beta1.JobTemplateSpec{
@@ -39,11 +48,12 @@ func new(projectName, nameSpace, repo string, cmd string, args *[]string, remote
 							Spec: v1.PodSpec{
 								Containers: []v1.Container{
 									{
-										Name:  cronJobUniqueName,
-										Image: image,
-										//Command:         *cmd,
-										Args:            *args,
+										Name:            cronJobUniqueName,
+										Image:           image,
+										Command:         []string{"/bin/bash"},
+										Args:            args,
 										ImagePullPolicy: v1.PullAlways,
+										Env:             append([]v1.EnvVar{}, envVar),
 									},
 								},
 								RestartPolicy: v1.RestartPolicyNever,
@@ -56,50 +66,20 @@ func new(projectName, nameSpace, repo string, cmd string, args *[]string, remote
 				ConcurrencyPolicy: v1beta1.ForbidConcurrent,
 			},
 		},
-		// spec: &batchv1.CronJob{
-		// 	ObjectMeta: metav1.ObjectMeta{
-		// 		Name:      cronJobUniqueName,
-		// 		Namespace: nameSpace,
-		// 	},
-		// 	Spec: batchv1.CronJobSpec{
-		// 		JobTemplate: batchv1.JobTemplateSpec{
-		// 			Spec: batchv1.JobSpec{
-		// 				Template: v1.PodTemplateSpec{
-		// 					Spec: v1.PodSpec{
-		// 						Containers: []v1.Container{
-		// 							{
-		// 								Name:    cronJobUniqueName,
-		// 								Image:   image,
-		// 								Command: *cmd,
-		// 							},
-		// 						},
-		// 						RestartPolicy: v1.RestartPolicyNever,
-		// 					},
-		// 				},
-		// 				BackoffLimit: &backOffLimit,
-		// 			},
-		// 		},
-		// 		Schedule:          "0 * * * *",
-		// 		ConcurrencyPolicy: batchv1.ForbidConcurrent,
-		// 	},
-		// },
 	}
 
 	return cronJob
 	// TODO: Go converter package for dynamic cronjob version generation
 }
 
+// TODO: cj in registry's namespace
 func (cj *CronJob) Deploy(ctx context.Context) error {
-	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
-	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
-	_, err := cronJobInterface.Create(ctx, cj.spec, metav1.CreateOptions{})
+	_, err := clientSet.BatchV1beta1().CronJobs(cj.resource.Namespace).Create(ctx, cj.resource, metav1.CreateOptions{})
 	return err
 }
 
 func (cj *CronJob) Delete(ctx context.Context) error {
-	cronJobInterface := clientSet.BatchV1beta1().CronJobs(cj.spec.Namespace)
-	//cronJobInterface := clientSet.BatchV1().CronJobs(cj.spec.Namespace)
-	return cronJobInterface.Delete(ctx, cj.spec.Name, metav1.DeleteOptions{})
+	return clientSet.BatchV1beta1().CronJobs(cj.resource.Namespace).Delete(ctx, cj.resource.Name, metav1.DeleteOptions{})
 }
 
 func (cj *CronJob) Direction() string {
@@ -107,11 +87,11 @@ func (cj *CronJob) Direction() string {
 }
 
 func (cj *CronJob) GetName() string {
-	return cj.spec.Name
+	return cj.resource.Name
 }
 
 func (cj *CronJob) GetNamespace() string {
-	return cj.spec.Namespace
+	return cj.resource.Namespace
 }
 
 func (cj *CronJob) GetProjectType() string {
@@ -119,11 +99,11 @@ func (cj *CronJob) GetProjectType() string {
 }
 
 func (cj *CronJob) GetProjectName() string {
-	return cj.projectName
+	return cj.resource.Labels["project"]
 }
 
 func (cj *CronJob) RemoteRegistry() globalregistry.Registry {
-	return *cj.remoteRegistry
+	return cj.remoteRegistry
 }
 
 func (cj *CronJob) Trigger() string {

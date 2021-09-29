@@ -105,13 +105,19 @@ func (t *transfer) Import(source, destination string, logger logr.Logger) *exec.
 	)
 }
 
-func (t *transfer) Sync(source, destination string, destCredentials *[]string, logger logr.Logger) *exec.Cmd {
+func (t *transfer) Sync(forCronJob bool, source, destination string, destCredentials *[]string, logger logr.Logger) *exec.Cmd {
 	if logger != nil {
 		logger.Info("syncing images started")
 	}
 
+	syncSource := source
+	executablePrefix := "./"
+	if forCronJob {
+		syncSource = "\"$repo\""
+		executablePrefix = ""
+	}
 	return exec.Command(
-		fmt.Sprintf("./%s", commandPath),
+		fmt.Sprintf("%s%s", executablePrefix, commandPath),
 		syncCommand,
 		sourceTransportFlag,
 		dockerTransport,
@@ -121,7 +127,7 @@ func (t *transfer) Sync(source, destination string, destCredentials *[]string, l
 		fmt.Sprintf("%s:%s", t.username, t.password),
 		destinationCredentialsFlag,
 		fmt.Sprintf("%s:%s", t.username, t.password),
-		source,
+		syncSource,
 		destination,
 	)
 }
