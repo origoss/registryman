@@ -18,26 +18,21 @@ package jfrog
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
-
-type project struct {
-	key      string
-	registry *registry
-	Name     string
-}
 
 // interface guard
 var _ globalregistry.Project = &project{}
 var _ globalregistry.ProjectWithRepositories = &project{}
 var _ globalregistry.ProjectWithMembers = &project{}
 
-// var _ globalregistry.MemberManipulatorProject = &project{}
+var _ globalregistry.MemberManipulatorProject = &project{}
 var _ globalregistry.DestructibleProject = &project{}
 
 func (p *project) GetName() string {
-	return p.Name
+	return p.name
 }
 
 // Delete removes the project from registry
@@ -51,149 +46,83 @@ func (p *project) Delete() error {
 		switch opt := p.registry.GetOptions().(type) {
 		case globalregistry.CanForceDelete:
 			if f := opt.ForceDeleteProjects(); !f {
-				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.ErrRecoverableError)
-			}
-			for _, repo := range repos {
-				p.registry.logger.V(1).Info("deleting repository",
-					"repositoryName", repos,
-				)
-				err = p.deleteRepository(repo)
-				if err != nil {
-					return err
-				}
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.GetName(), globalregistry.ErrRecoverableError)
 			}
 		}
 
 	}
-	return p.registry.delete(p.key)
+	return p.registry.delete(p.GetName())
 }
 
-// func robotRoleToAccess(role string) []access {
-// 	switch role {
-// 	case "PushOnly":
-// 		return []access{
-// 			{
-// 				Action:   "push",
-// 				Resource: "repository",
-// 				// Effect:   "",
-// 			},
-// 		}
-// 	case "PullOnly":
-// 		return []access{
-// 			{
-// 				Action:   "pull",
-// 				Resource: "repository",
-// 				// Effect:   "",
-// 			},
-// 		}
-// 	case "PullAndPush":
-// 		return []access{
-// 			{
-// 				Action:   "pull",
-// 				Resource: "repository",
-// 				// Effect:   "",
-// 			},
-// 			{
-// 				Action:   "push",
-// 				Resource: "repository",
-// 				// Effect:   "",
-// 			},
-// 		}
-// 	default:
-// 		panic(fmt.Sprintf("%s robot role is not supported", role))
-// 	}
-// }
+func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregistry.ProjectMemberCredentials, error) {
+	role, err := roleFromString(member.GetRole())
+	if err != nil {
+		return nil, err
+	}
+	permissionReqBody, err := p.registry.getPermission(p.registry.GetDockerRegistryName() + "_" + p.GetName())
+	if err != nil {
+		return nil, err
+	}
 
-// func (p *project) AssignMember(member globalregistry.ProjectMember) (*globalregistry.ProjectMemberCredentials, error) {
-// 	role, err := roleFromString(member.GetRole())
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	pum := &projectMemberRequestBody{
-// 		RoleId: role,
-// 		MemberUser: &userEntity{
-// 			Username: member.GetName(),
-// 		},
-// 	}
-// 	_, err = p.registry.createProjectMember(p.id, pum)
-// 	return nil, err
+	if permissionReqBody.Principals.Users == nil {
+		permissionReqBody.Principals.Users = make(map[string][]string)
+	}
 
-// }
+	permissionReqBody.Principals.Users[member.GetName()] = strings.Split(role.String(), ",")
+
+	err = p.registry.createPermission(p.GetName(), permissionReqBody)
+	return nil, err
+
+}
 
 func (p *project) GetMembers() ([]globalregistry.ProjectMember, error) {
-	members, err := p.registry.getMembers(p.key)
+	members, err := p.registry.getMembers(p)
 	if err != nil {
 		return nil, err
 	}
 	projectMembers := make([]globalregistry.ProjectMember, len(members))
-
-	c := 0
-	for _, m := range members {
-		projectMembers[c] = m.toProjectMember()
-		c++
+	for i, m := range members {
+		projectMembers[i] = m.toProjectMember()
 	}
-
 	return projectMembers, nil
 }
 
-// func (p *project) UnassignMember(member globalregistry.ProjectMember) error {
-// 	memberType := member.GetType()
-// 	var err error
-// 	switch memberType {
-// 	default:
-// 		return fmt.Errorf("unhandled member type: %s", memberType)
-// 	case userType, groupType:
-// 		var m *projectMemberEntity
-// 		var members []*projectMemberEntity
-// 		members, err = p.registry.getMembers(p.id)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		for _, memb := range members {
-// 			if memb.EntityName == member.GetName() {
-// 				m = memb
-// 				break
-// 			}
-// 		}
-// 		if m == nil {
-// 			return fmt.Errorf("user member not found")
-// 		}
-// 		err = p.registry.deleteProjectMember(p.id, m.Id)
-// 	case robotType:
-// 		var m *robot
-// 		var members []*robot
-// 		members, err = p.registry.getRobotMembers(p.id)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		expectedName := fmt.Sprintf("robot$%s+%s", p.GetName(), member.GetName())
-// 		for _, memb := range members {
-// 			if memb.GetName() == expectedName {
-// 				m = memb
-// 				break
-// 			}
-// 		}
-// 		if m == nil {
-// 			return fmt.Errorf("robot member not found")
-// 		}
-// 		err = p.registry.deleteProjectRobotMember(p.id, m.Id)
-// 	}
-// 	return err
-// }
+func (p *project) UnassignMember(member globalregistry.ProjectMember) error {
 
-// func (p *project) AssignReplicationRule(remoteReg globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {
-// 	return p.registry.createReplicationRule(p, remoteReg, trigger, direction)
-// }
+	var m *projectMember
+	members, err := p.registry.getMembers(p)
+	if err != nil {
+		return err
+	}
+	for _, memb := range members {
+		if memb.GetName() == member.GetName() {
+			m = &memb
+			break
+		}
+	}
+	if m == nil {
+		return fmt.Errorf("user member not found")
+	}
 
-func (p *project) GetRepositories() ([]string, error) {
-	return p.registry.listProjectRepositories(p)
+	permissionReqBody, err := p.registry.getPermission(p.registry.GetDockerRegistryName() + "_" + p.GetName())
+	if err != nil {
+		return err
+	}
+	delete(permissionReqBody.Principals.Users, m.GetName())
+
+	err = p.registry.createPermission(p.GetName(), permissionReqBody)
+	return err
 }
 
-func (p *project) deleteRepository(r string) error {
-	return p.registry.deleteProjectRepository(p, r)
+func (p *project) GetRepositories() ([]string, error) {
+	repos, err := p.registry.listFolders(p.GetName())
+	if err != nil {
+		return nil, err
+	}
+	return repos, nil
 }
 
 // GetUsedStorage implements the globalregistry.Project interface.
-func (p *project) GetUsedStorage() (int, error) {
-	return p.registry.getUsedStorage(p)
-}
+// func (p *project) GetUsedStorage() (int, error) {
+// 	return p.registry.getUsedStorage(p)
+// }

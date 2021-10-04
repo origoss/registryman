@@ -26,43 +26,33 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
-const projectPath = "/access/api/v1/projects"
-const repositoryPath = "/artifactory/api/repositories"
+const artifactoryPath = "/artifactory"
+const repositoryPath = artifactoryPath + "/api/repositories"
+const permissionPath = artifactoryPath + "/api/security/permissions"
+const storagePath = artifactoryPath + "/api/storage"
 
-type adminPrivileges struct {
-	ManageMembers        bool `json:"manage_members,omitempty"`
-	ManageResources      bool `json:"manage_resources,omitempty"`
-	ManageSecurityAssets bool `json:"manage_security_assets,omitempty"`
-	IndexResources       bool `json:"index_resources,omitempty"`
-	AllowIgnoreRules     bool `json:"allow_ignore_rules,omitempty"`
+type project struct {
+	name     string
+	registry *registry
 }
 
-type projectStatus struct {
-	DisplayName                   string          `json:"display_name"`
-	Description                   string          `json:"description,omitempty"`
-	AdminPrivileges               adminPrivileges `json:"admin_privileges,omitempty"`
-	StorageQuotaBytes             int             `json:"storage_quota_bytes,omitempty"`
-	SoftLimit                     bool            `json:"soft_limit,omitempty"`
-	StorageQuotaEmailNotification bool            `json:"storage_quota_email_notification,omitempty"`
-	ProjectKey                    string          `json:"project_key"`
+type folderInfoRespBody struct {
+	Uri      string      `json:"uri"`
+	Repo     string      `json:"repo"`
+	Path     string      `json:"path"`
+	Children []childItem `json:"children"`
 }
 
-type repositoryConfiguration struct {
-	ProjectKey  string `json:"projectKey"`
-	Rclass      string `json:"rclass"`
-	PackageType string `json:"packageType"`
-}
-
-func (ps *projectStatus) GetName() string {
-	return ps.DisplayName
+type childItem struct {
+	Uri      string `json:"uri"`
+	IsFolder bool   `json:"folder"`
 }
 
 func (r *registry) GetProjectByName(name string) (globalregistry.Project, error) {
 	if name == "" {
 		return &project{
-			key:      "",
+			name:     "",
 			registry: r,
-			Name:     "",
 		}, nil
 	}
 	projects, err := r.ListProjects()
@@ -74,22 +64,23 @@ func (r *registry) GetProjectByName(name string) (globalregistry.Project, error)
 			return project, nil
 		}
 	}
-	return nil, nil
+	return nil, fmt.Errorf("no project found: %w", globalregistry.ErrRecoverableError)
 }
 
-func (r *registry) ListProjects() ([]globalregistry.Project, error) {
-	r.logger.V(1).Info("listing projects",
-		"registry", r.GetName(),
-	)
+func (r *registry) listFolders(optionalProjectName string) ([]string, error) {
 	apiUrl := *r.parsedUrl
-	apiUrl.Path = projectPath
+	path := storagePath + "/" + r.GetDockerRegistryName()
+	if optionalProjectName != "" {
+		path += "/" + optionalProjectName
+	}
+	apiUrl.Path = path
 	req, err := http.NewRequest(http.MethodGet, apiUrl.String(), nil)
+	r.logger.V(1).Info("creating new request", "url", apiUrl.String())
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
-	req.Header.Add("Accept", "application/json")
+	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
 
 	resp, err := r.do(req)
 	if err != nil {
@@ -98,9 +89,9 @@ func (r *registry) ListProjects() ([]globalregistry.Project, error) {
 
 	defer resp.Body.Close()
 
-	projectData := []*projectStatus{}
+	repos := &folderInfoRespBody{}
 
-	err = json.NewDecoder(resp.Body).Decode(&projectData)
+	err = json.NewDecoder(resp.Body).Decode(repos)
 	if err != nil {
 		r.logger.Error(err, "json decoding failed")
 		b := bytes.NewBuffer(nil)
@@ -110,101 +101,64 @@ func (r *registry) ListProjects() ([]globalregistry.Project, error) {
 		}
 		r.logger.Info(b.String())
 	}
-	pStatus := make([]globalregistry.Project, len(projectData))
-	for i, pData := range projectData {
-		r.logger.V(1).Info("listing projects",
-			"Name", pData.GetName(),
-			"id", pData.ProjectKey,
-		)
-		pStatus[i] = &project{
-			key:      pData.ProjectKey,
-			registry: r,
-			Name:     pData.GetName(),
+	folderNames := []string{}
+
+	for _, item := range repos.Children {
+		if item.IsFolder {
+			folderNames = append(folderNames, strings.TrimPrefix(item.Uri, "/"))
 		}
+
 	}
+
+	return folderNames, nil
+}
+
+func (r *registry) ListProjects() ([]globalregistry.Project, error) {
+	repositories, err := r.listFolders("")
+	if err != nil {
+		return nil, err
+	}
+	pStatus := r.collectProjectNamesFromRepos(repositories)
 
 	return pStatus, err
 }
 
+func projectNameFromRepoName(repoName string) string {
+	return strings.Split(repoName, "/")[0]
+}
+
+func (r *registry) collectProjectNamesFromRepos(repoNames []string) []globalregistry.Project {
+	projectNames := make(map[string]struct{})
+
+	for _, repoName := range repoNames {
+		projectName := projectNameFromRepoName(repoName)
+		projectNames[projectName] = struct{}{}
+	}
+	pStatus := make([]globalregistry.Project, len(projectNames))
+
+	i := 0
+	for projectName := range projectNames {
+		pStatus[i] = &project{
+			name:     projectName,
+			registry: r,
+		}
+		i++
+	}
+	return pStatus
+}
+
 func (r *registry) CreateProject(name string) (globalregistry.Project, error) {
-	r.logger.V(-1).Info("create project",
-		"Name", name,
-	)
 	proj := &project{
 		registry: r,
-		Name:     name,
+		name:     name,
 	}
 
 	apiUrl := *r.parsedUrl
-	apiUrl.Path = projectPath
-	reqBodyBuf := bytes.NewBuffer(nil)
-	err := json.NewEncoder(reqBodyBuf).Encode(&projectStatus{
-		DisplayName: proj.Name,
-		ProjectKey:  proj.Name[0:3],
-	})
+	apiUrl.Path = fmt.Sprintf("%s/%s/%s/", artifactoryPath, r.GetDockerRegistryName(), proj.GetName())
+
+	req, err := http.NewRequest(http.MethodPut, apiUrl.String(), nil)
 	if err != nil {
 		return nil, err
-	}
-	req, err := http.NewRequest(http.MethodPost, apiUrl.String(), reqBodyBuf)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header["Content-Type"] = []string{"application/json"}
-	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
-	req.Header.Add("Accept", "application/json")
-
-	resp, err := r.do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	projectData := &projectStatus{}
-
-	err = json.NewDecoder(resp.Body).Decode(&projectData)
-	if err != nil {
-		r.logger.Error(err, "json decoding failed")
-		b := bytes.NewBuffer(nil)
-		_, err := b.ReadFrom(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		r.logger.Info(b.String())
-	}
-	proj.key = projectData.ProjectKey
-
-	err = r.createRepository(proj)
-	if err != nil {
-		return nil, err
-	}
-
-	return proj, err
-}
-
-func (r *registry) createRepository(proj *project) error {
-	r.logger.V(-1).Info("create default docker repository for project",
-		"ProjectName", proj.Name,
-		"ProjectKey", proj.key,
-		"RepoName", proj.GetName()+"-docker",
-	)
-
-	apiUrl := *r.parsedUrl
-	apiUrl.Path = fmt.Sprintf("%s/%s", repositoryPath, proj.GetName()+"-docker")
-
-	reqBodyBuf := bytes.NewBuffer(nil)
-	err := json.NewEncoder(reqBodyBuf).Encode(&repositoryConfiguration{
-		ProjectKey:  proj.key,
-		Rclass:      "local",
-		PackageType: "docker",
-	})
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPut, apiUrl.String(), reqBodyBuf)
-	if err != nil {
-		return err
 	}
 
 	req.Header["Content-Type"] = []string{"application/json"}
@@ -212,87 +166,27 @@ func (r *registry) createRepository(proj *project) error {
 
 	resp, err := r.do(req)
 	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	return nil
-}
-
-func (r *registry) delete(key string) error {
-	apiUrl := *r.parsedUrl
-	apiUrl.Path = fmt.Sprintf("%s/%s", projectPath, key)
-	r.logger.V(1).Info("creating new request", "url", apiUrl.String())
-	req, err := http.NewRequest(http.MethodDelete, apiUrl.String(), nil)
-	if err != nil {
-		return err
-	}
-	r.logger.V(1).Info("sending HTTP request")
-
-	req.Header["Content-Type"] = []string{"application/json"}
-	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
-	req.Header.Add("Accept", "application/json")
-
-	resp, err := r.do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	return nil
-}
-
-type projectRepositoryRespBody struct {
-	Name        string `json:"key"`
-	PackageType string `json:"packageType"`
-	Type        string `json:"type"`
-}
-
-func (r *registry) listProjectRepositories(proj *project) ([]string, error) {
-	apiUrl := *r.parsedUrl
-	apiUrl.Path = repositoryPath
-	req, err := http.NewRequest(http.MethodGet, apiUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header["Content-Type"] = []string{"application/json"}
-	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
-	req.Header.Add("Accept", "application/json")
-
-	resp, err := r.do(req)
-	if err != nil {
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 
-	repositories := []*projectRepositoryRespBody{}
+	err = r.createPermission(name, &permissionConfiguration{
+		Name:            r.GetDockerRegistryName() + "_" + name,
+		IncludesPattern: name + "/**",
+		Repositories:    []string{r.GetDockerRegistryName()},
+	})
 
-	err = json.NewDecoder(resp.Body).Decode(&repositories)
 	if err != nil {
-		buf := resp.Body.(*bytesBody)
-		r.logger.Error(err, "json decoding failed")
-		r.logger.Info(buf.String())
+		return nil, err
 	}
 
-	var repositoryNames []string
-	for _, rep := range repositories {
-		if strings.HasPrefix(rep.Name, fmt.Sprintf("%s-", proj.key)) && rep.PackageType == "Docker" && rep.Type == "LOCAL" {
-			repositoryNames = append(
-				repositoryNames,
-				rep.Name,
-			)
-		}
-	}
-	return repositoryNames, err
+	return proj, nil
 }
 
-func (r *registry) deleteProjectRepository(proj *project, repo string) error {
+func (r *registry) delete(project string) error {
 	apiUrl := *r.parsedUrl
-	apiUrl.Path = fmt.Sprintf("%s/%s", repositoryPath, repo)
+	apiUrl.Path = fmt.Sprintf("%s/%s/%s", artifactoryPath, r.GetDockerRegistryName(), project)
 	req, err := http.NewRequest(http.MethodDelete, apiUrl.String(), nil)
 	if err != nil {
 		return err
@@ -307,48 +201,55 @@ func (r *registry) deleteProjectRepository(proj *project, repo string) error {
 
 	defer resp.Body.Close()
 
-	return nil
-}
-
-func (r *registry) getUsedStorage(proj *project) (int, error) {
-	r.logger.V(1).Info("getting storage usage of a project",
-		"projectName", proj.Name,
-	)
-
-	apiUrl := *r.parsedUrl
-	apiUrl.Path = projectPath
-	req, err := http.NewRequest(http.MethodGet, apiUrl.String(), nil)
+	err = r.deletePermission(project)
 	if err != nil {
-		return -1, err
-	}
-
-	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
-	req.Header.Add("Accept", "application/json")
-
-	resp, err := r.do(req)
-	if err != nil {
-		return -1, err
-	}
-
-	defer resp.Body.Close()
-
-	projectData := []*projectStatus{}
-
-	err = json.NewDecoder(resp.Body).Decode(&projectData)
-	if err != nil {
-		r.logger.Error(err, "json decoding failed")
-		b := bytes.NewBuffer(nil)
-		_, err := b.ReadFrom(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		r.logger.Info(b.String())
-	}
-
-	for _, pData := range projectData {
-		if proj.GetName() == pData.GetName() {
-			return pData.StorageQuotaBytes, nil
+		if resp.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("principal target %s not exists, %w", r.GetDockerRegistryName()+"_"+project, globalregistry.ErrRecoverableError)
 		}
 	}
-	return -1, nil
+
+	return err
 }
+
+// func (r *registry) getUsedStorage(proj *project) (int, error) {
+// 	r.logger.V(1).Info("getting storage usage of a project",
+// 		"projectName", proj.Name,
+// 	)
+
+// 	apiUrl := *r.parsedUrl
+// 	apiUrl.Path = projectPath
+// 	req, err := http.NewRequest(http.MethodGet, apiUrl.String(), nil)
+// 	if err != nil {
+// 		return -1, err
+// 	}
+
+// 	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
+// 	req.Header.Add("Accept", "application/json")
+
+// 	resp, err := r.do(req)
+// 	if err != nil {
+// 		return -1, err
+// 	}
+
+// 	defer resp.Body.Close()
+
+// 	projectData := []*projectStatus{}
+
+// 	err = json.NewDecoder(resp.Body).Decode(&projectData)
+// 	if err != nil {
+// 		r.logger.Error(err, "json decoding failed")
+// 		b := bytes.NewBuffer(nil)
+// 		_, err := b.ReadFrom(resp.Body)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 		r.logger.Info(b.String())
+// 	}
+
+// 	for _, pData := range projectData {
+// 		if proj.GetName() == pData.GetName() {
+// 			return pData.StorageQuotaBytes, nil
+// 		}
+// 	}
+// 	return -1, nil
+// }

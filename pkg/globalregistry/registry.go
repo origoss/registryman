@@ -58,7 +58,7 @@ type Registry interface {
 	GetProvider() string
 	GetUsername() string
 	GetPassword() string
-	GetAccessToken() string
+	GetDockerRegistryName() string
 	GetAPIEndpoint() string
 	GetName() string
 	GetOptions() RegistryOptions

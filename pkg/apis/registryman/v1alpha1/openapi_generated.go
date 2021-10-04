@@ -649,6 +649,13 @@ func schema_pkg_apis_registryman_v1alpha1_RegistrySpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"dockerRegistryName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DockerRegistryName is the name of the artifact in case of JFrog artifactory repositories.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"username": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Username is the user name to be used during the authentication at the APIEndpoint interface.",

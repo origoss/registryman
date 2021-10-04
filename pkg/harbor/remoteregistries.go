@@ -102,7 +102,7 @@ func (reg *remoteRegistryStatus) GetPassword() string {
 	return reg.Credential.AccessSecret
 }
 
-func (reg *remoteRegistryStatus) GetAccessToken() string {
+func (reg *remoteRegistryStatus) GetDockerRegistryName() string {
 	panic("not implemented")
 }
 

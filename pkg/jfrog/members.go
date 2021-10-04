@@ -17,12 +17,6 @@
 package jfrog
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strings"
-
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -31,10 +25,6 @@ const (
 	robotType = "Robot"
 	groupType = "Group"
 )
-
-type projectMembers struct {
-	Members []projectMember `json:"members"`
-}
 
 type projectMember struct {
 	Name  string   `json:"name"`
@@ -52,67 +42,85 @@ func (m *projectMember) GetType() string {
 }
 
 func (m *projectMember) GetRole() string {
-	return strings.Join(m.Roles, ",")
+	return roleFromList(m.Roles)
 }
 
 func (m *projectMember) toProjectMember() globalregistry.ProjectMember {
-	return (*projectMember)(m)
+	p := &projectMember{
+		Name:  m.Name,
+		Roles: m.Roles,
+	}
+	return p
 
 }
 
-// type userGroup struct {
-// 	GroupName   string `json:"group_name"`
-// 	LdapGroupDn string `json:"ldap_group_dn"`
-// 	GroupType   int    `json:"group_type"`
-// 	Id          int    `json:"id"`
-// }
-
-// type userEntity struct {
-// 	Username string `json:"username"`
-// 	UserId   int    `json:"user_id"`
-// }
-
-// type projectMemberRequestBody struct {
-// 	RoleId role `json:"role_id"`
-// 	// Only one of the MemberGroup and MemberUser parameters needs to be specified!
-// 	MemberGroup *userGroup  `json:"member_group"`
-// 	MemberUser  *userEntity `json:"member_user"`
-// }
-
-func (r *registry) getMembers(projectKey string) ([]projectMember, error) {
-	url := *r.parsedUrl
-	url.Path = fmt.Sprintf("%s/%s/users", projectPath, projectKey)
-	r.logger.V(1).Info("creating new request", "url", url.String())
-	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+func (r *registry) getMembers(p *project) ([]projectMember, error) {
+	projectMembers, err := p.registry.getPermission(r.GetDockerRegistryName() + "_" + p.GetName())
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Authorization", "Bearer "+r.GetAccessToken())
-	req.Header.Add("Accept", "application/json")
+	projectMembersResult := make([]projectMember, len(projectMembers.Principals.Users))
 
-	resp, err := r.do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	projectMembersResult := &projectMembers{}
-
-	err = json.NewDecoder(resp.Body).Decode(&projectMembersResult)
-	if err != nil {
-		r.logger.Error(err, "json decoding failed")
-		b := bytes.NewBuffer(nil)
-		_, err := b.ReadFrom(resp.Body)
-		if err != nil {
-			panic(err)
+	c := 0
+	for user, roles := range projectMembers.Principals.Users {
+		projectMembersResult[c] = projectMember{
+			Name:  user,
+			Roles: roles,
 		}
-		r.logger.Info(b.String())
-		fmt.Printf("body: %+v\n", b.String())
+		c++
 	}
-	return projectMembersResult.Members, err
+
+	return projectMembersResult, err
 }
+
+// func (r *registry) getMembers(p *project) ([]projectMember, error) {
+// 	url := *r.parsedUrl
+// 	url.Path = fmt.Sprintf("%s/%s/%s", storagePath, r.GetDockerRegistryName(), p.name)
+// 	url.RawQuery = "permissions"
+// 	r.logger.V(1).Info("creating new request", "url", url.String())
+// 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	req.Header["Content-Type"] = []string{"application/json"}
+// 	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
+
+// 	resp, err := r.do(req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	defer resp.Body.Close()
+
+// 	projectMembers := &projectMemberRequestBody{}
+
+// 	err = json.NewDecoder(resp.Body).Decode(&projectMembers)
+// 	if err != nil {
+// 		r.logger.Error(err, "json decoding failed")
+// 		b := bytes.NewBuffer(nil)
+// 		_, err := b.ReadFrom(resp.Body)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 		r.logger.Info(b.String())
+// 		fmt.Printf("body: %+v\n", b.String())
+// 	}
+// 	// TODO: add groups +len(projectMembers.Principals.Groups
+// 	projectMembersResult := make([]projectMember, len(projectMembers.Principals.Users))
+
+// 	c := 0
+// 	for user, roles := range projectMembers.Principals.Users {
+// 		projectMembersResult[c] = projectMember{
+// 			Name:  user,
+// 			Roles: roles,
+// 		}
+// 		c++
+// 	}
+
+// 	return projectMembersResult, err
+// }
 
 // func (r *registry) createProjectMember(projectID int, projectMember *projectMemberRequestBody) (int, error) {
 // 	url := *r.parsedUrl

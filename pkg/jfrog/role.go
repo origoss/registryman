@@ -17,8 +17,8 @@
 package jfrog
 
 import (
-	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -31,46 +31,56 @@ const (
 	maintainerRole   role = 4
 )
 
-func (r *role) UnmarshalJSON(b []byte) error {
-	var i int
-	if err := json.Unmarshal(b, &i); err != nil {
-		return err
-	}
-	*r = role(i)
-	return nil
-}
-
-func (r role) MarshalJSON() ([]byte, error) {
-	return json.Marshal(int(r))
-}
-
 // String method implements the Stringer interface for Role.
 func (r role) String() string {
 	switch r {
 	case projectAdminRole:
-		return "Project Admin"
+		return "r,mxm,d,w,m,n"
 	case developerRole:
-		return "Developer"
+		return "r,d,w,n"
 	case guestRole:
-		return "Viewer"
+		return "r"
 	case maintainerRole:
-		return "Release Manager"
+		return "r,d,w,m,n"
 	default:
 		return "*unknown-role*"
 	}
+}
+
+func roleFromList(s []string) string {
+	sort.Strings(s)
+	if contains(s, "r") {
+		if contains(s, "d") && contains(s, "w") && contains(s, "n") {
+			if contains(s, "m") {
+				if contains(s, "mxm") {
+					return "ProjectAdmin"
+				}
+				return "Maintainer"
+			}
+			return "Developer"
+		}
+		return "Guest"
+	}
+	fmt.Printf("%v\n", s)
+	return "*unknown-role*"
+}
+
+func contains(s []string, searchterm string) bool {
+	i := sort.SearchStrings(s, searchterm)
+	return i < len(s) && s[i] == searchterm
 }
 
 func roleFromString(s string) (role, error) {
 	for _, r := range strings.Split(s, ",") {
 
 		switch r {
-		case "Project Admin":
+		case "ProjectAdmin":
 			return projectAdminRole, nil
 		case "Developer":
 			return developerRole, nil
-		case "Viewer":
+		case "Guest":
 			return guestRole, nil
-		case "Release Manager":
+		case "Maintainer":
 			return maintainerRole, nil
 		default:
 			return role(-1), fmt.Errorf("unknown role: %s", s)

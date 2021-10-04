@@ -68,6 +68,10 @@ type RegistrySpec struct {
 	// like "http://harbor.example.com:8080".
 	APIEndpoint string `json:"apiEndpoint"`
 
+	// DockerRegistryName is the name of the artifact in case of JFrog artifactory
+	// repositories.
+	DockerRegistryName string `json:"dockerRegistryName,omitempty"`
+
 	// Username is the user name to be used during the authentication at the
 	// APIEndpoint interface.
 	Username string `json:"username"`
@@ -75,10 +79,6 @@ type RegistrySpec struct {
 	// Password is the password to be used during the authentication at the
 	// APIEndpoint interface.
 	Password string `json:"password"`
-
-	// AccessToken is the token to be used during the authentication at the
-	// APIEndpoint interface.
-	AccessToken string `json:"accessToken,omitempty"`
 
 	// +kubebuilder:default=Local
 	// +kubebuilder:validation:Optional

@@ -79,9 +79,9 @@ func (reg *Registry) GetPassword() string {
 	return reg.apiRegistry.Spec.Password
 }
 
-// GetAccessToken method implements the globalregistry.RegistryConfig interface.
-func (reg *Registry) GetAccessToken() string {
-	return reg.apiRegistry.Spec.AccessToken
+// GetDockerRegistryName method implements the globalregistry.RegistryConfig interface.
+func (reg *Registry) GetDockerRegistryName() string {
+	return reg.apiRegistry.Spec.DockerRegistryName
 }
 
 type registryOptions struct {

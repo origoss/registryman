@@ -42,6 +42,10 @@ spec:
                   endpoint, like "http://harbor.example.com:8080".
                 pattern: ^(https?|ftp)://[^\s/$.?#].[^\s]*$
                 type: string
+              dockerRegistryName:
+                description: DockerRegistryName is the name of the artifact in case
+                  of JFrog artifactory repositories.
+                type: string
               password:
                 description: Password is the password to be used during the authentication
                   at the APIEndpoint interface.

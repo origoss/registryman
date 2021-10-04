@@ -121,7 +121,7 @@ func (r *registry) createReplicationRule(project globalregistry.Project, remoteR
 
 	destNamespace := ""
 	if remoteReg.GetProvider() == "jfrog" {
-		destNamespace = fmt.Sprintf("%s-docker", project.GetName())
+		destNamespace = fmt.Sprintf("%s/%s", remoteReg.GetDockerRegistryName(), project.GetName())
 	}
 
 	replicationPolicy := &replicationResponseBody{
