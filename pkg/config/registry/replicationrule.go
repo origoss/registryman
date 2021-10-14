@@ -54,8 +54,9 @@ func calculateReplicationRule(local, remote registryCapabilities) calculatedRepl
 
 type replicationRule struct {
 	calculatedReplication
-	project *project
-	remote  *Registry
+	project               *project
+	remote                *Registry
+	replicationAnnotation string
 }
 
 var _ globalregistry.ReplicationRule = &replicationRule{}
@@ -103,4 +104,21 @@ func (rule *replicationRule) Direction() string {
 
 func (rule *replicationRule) RemoteRegistry() globalregistry.Registry {
 	return rule.remote
+}
+
+func (rule *replicationRule) Type() globalregistry.ReplicationType {
+	switch rule.Trigger() {
+	case "manual", "event_based":
+		return globalregistry.RegistryReplication
+	// TODO implement getting the first element of trigger string to handle 'cron * * * * *'
+	case "cron":
+		switch rule.replicationAnnotation {
+		case "registry":
+			return globalregistry.RegistryReplication
+		default:
+			return globalregistry.SkopeoReplication
+		}
+	default:
+		// TODO default cron value
+	}
 }

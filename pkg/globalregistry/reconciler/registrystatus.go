@@ -73,6 +73,9 @@ func getRegistryCapabilities(ctx context.Context, reg globalregistry.Registry) (
 	return registryCapabilities, nil
 }
 
+// runs for both expected and actual case
+//func GetCronReplicationRuleStatus()
+
 // GetRegistryStatus function calculate the status of a registry. If the
 // registry represents a configuration of registry, then the expected registry
 // status is returned. If the registry represents an actual (real) registry, the
@@ -122,10 +125,13 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 				projectStatuses[i].ReplicationRules[n].RemoteRegistryName = rule.RemoteRegistry().GetName()
 				projectStatuses[i].ReplicationRules[n].Trigger = string(rule.Trigger())
 				projectStatuses[i].ReplicationRules[n].Direction = rule.Direction()
+				// TODO fill in Type field
 			}
 		} else {
 			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, 0)
 		}
+		// TODO: extend replication rule list with replication rules from API object store (i.e. Kubernetes)
+		// cronjob.GetReplicationRulesOfProject(project) => []globalregistry.ReplicationRule
 
 		projectWithStorage, ok := project.(globalregistry.ProjectWithStorage)
 		if ok {

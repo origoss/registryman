@@ -189,6 +189,9 @@ type ReplicationRuleStatus struct {
 
 	// Direction shows whether the replication is of type pull or push.
 	Direction string `json:"direction"`
+
+	// Type shows where the replication logic is implemented.
+	Type string `json:"type"`
 }
 
 // ScannerStatus specifies the status of a project's external vulnerability scanner.

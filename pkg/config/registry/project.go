@@ -52,12 +52,22 @@ func (proj *project) GetMembers(context.Context) ([]globalregistry.ProjectMember
 	return members, nil
 }
 
-func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
+// func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
+// 	return proj.filterReplicationRules(ctx, ReplicationRuleIsNotOfType(globalregistry.SkopeoReplication), trigger, direction)
+// }
+
+func (proj *project) GetReplicationRules(ctx context.Context, filter ReplicationRuleFilter, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
 	rules := []globalregistry.ReplicationRule{}
 	switch proj.Spec.Type {
 	case api.GlobalProjectType:
+	Loop:
 		for _, r := range proj.registry.apiProvider.GetRegistries(ctx) {
-			remoteReg := New(r, proj.registry.apiProvider)
+			// remoteReg := New(r, proj.registry.apiProvider)
+			// if registryWithReplicate, ok := remoteReg.GetOptions().(globalregistry.CanReplicate); ok {
+			// 	if !filter(registryWithReplicate.SupportsProjectReplication()) {
+			// 		continue Loop
+			// 	}
+			// }
 			if proj.registry.GetName() != r.GetName() {
 				calcRepl := calculateReplicationRule(
 					proj.registry.registryCapabilities(),
@@ -68,6 +78,7 @@ func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction
 						calculatedReplication: calcRepl,
 						project:               proj,
 						remote:                remoteReg,
+						replicationAnnotation: proj.Annotations["registryman.kubermatic.com/replication"],
 					}
 					if trigger != "" && trigger != repRule.Trigger() {
 						continue
