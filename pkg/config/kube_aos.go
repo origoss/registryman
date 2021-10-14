@@ -25,10 +25,13 @@ import (
 	regmanclient "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1/clientset/versioned"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/spf13/pflag"
+	v1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	applyBatchv1 "k8s.io/client-go/applyconfigurations/batch/v1"
+	applyBatchv1beta1 "k8s.io/client-go/applyconfigurations/batch/v1beta1"
 	applyCoreV1 "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -84,6 +87,7 @@ func (aos *kubeApiObjectStore) WriteResource(ctx context.Context, obj runtime.Ob
 		"version", gvk.Version,
 		"kind", gvk.Kind,
 	)
+
 	switch gvk {
 	default:
 		logger.V(-1).Info("WriterResource invoked, unsupported resource",
@@ -108,6 +112,7 @@ func (aos *kubeApiObjectStore) WriteResource(ctx context.Context, obj runtime.Ob
 			WithData(secret.Data).
 			WithStringData(secret.StringData).
 			WithType(secret.Type)
+		// no error returned
 		if err != nil {
 			return fmt.Errorf("error creating SecretApplyConfiguration: %w", err)
 		}
@@ -119,8 +124,101 @@ func (aos *kubeApiObjectStore) WriteResource(ctx context.Context, obj runtime.Ob
 		if err != nil {
 			return fmt.Errorf("error applying secret: %w", err)
 		}
+	case schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "ConfigMap",
+	}:
+		configMap := obj.(*corev1.ConfigMap)
+		namespace, _, err := kubeConfig.Namespace()
+		if err != nil {
+			return fmt.Errorf("cannot get Kubernetes namespace: %w", err)
+		}
+		logger.V(1).Info("creating a new configMap",
+			"name", configMap.GetName(),
+		)
+		applyConfig := applyCoreV1.ConfigMap(configMap.Name, namespace).
+			WithData(configMap.Data).
+			WithLabels(configMap.Labels)
+
+		_, err = aos.kubeClient.CoreV1().ConfigMaps(namespace).Apply(ctx,
+			applyConfig,
+			v1.ApplyOptions{
+				FieldManager: fieldManager,
+			})
+		if err != nil {
+			return fmt.Errorf("error applying configMap: %w", err)
+		}
+	case schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1beta1",
+		Kind:    "CronJob",
+	}:
+		cronJob := obj.(*v1beta1.CronJob)
+		namespace, _, err := kubeConfig.Namespace()
+		if err != nil {
+			return fmt.Errorf("cannot get Kubernetes namespace: %w", err)
+		}
+
+		applyConfig := applyBatchv1beta1.CronJob(cronJob.Name, namespace).
+			WithLabels(cronJob.Labels).
+			WithAnnotations(cronJob.Annotations).
+			WithSpec(&applyBatchv1beta1.CronJobSpecApplyConfiguration{
+				Schedule:                &cronJob.Spec.Schedule,
+				StartingDeadlineSeconds: cronJob.Spec.StartingDeadlineSeconds,
+				ConcurrencyPolicy:       &cronJob.Spec.ConcurrencyPolicy,
+				JobTemplate: &applyBatchv1beta1.JobTemplateSpecApplyConfiguration{
+					Spec: &applyBatchv1.JobSpecApplyConfiguration{
+						Template: &applyCoreV1.PodTemplateSpecApplyConfiguration{
+							Spec: &applyCoreV1.PodSpecApplyConfiguration{
+								Containers:    createContainerApplyConfiguration(cronJob),
+								RestartPolicy: &cronJob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy,
+							},
+						},
+						BackoffLimit: cronJob.Spec.JobTemplate.Spec.BackoffLimit,
+					},
+				},
+			})
+
+		logger.V(1).Info("creating a new cronJob",
+			"name", cronJob.GetName(),
+		)
+
+		_, err = aos.kubeClient.BatchV1beta1().CronJobs(namespace).Apply(
+			ctx,
+			applyConfig,
+			v1.ApplyOptions{
+				FieldManager: fieldManager,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("error applying cronJob: %w", err)
+		}
 	}
 	return nil
+}
+
+func createContainerApplyConfiguration(cj *v1beta1.CronJob) []applyCoreV1.ContainerApplyConfiguration {
+	containerApplyConfig := []applyCoreV1.ContainerApplyConfiguration{}
+	for _, container := range cj.Spec.JobTemplate.Spec.Template.Spec.Containers {
+		containerApplyConfig = append(containerApplyConfig,
+			applyCoreV1.ContainerApplyConfiguration{
+				Name:    &container.Name,
+				Image:   &container.Image,
+				Command: container.Command,
+				Args:    container.Args,
+				EnvFrom: []applyCoreV1.EnvFromSourceApplyConfiguration{
+					{
+						ConfigMapRef: &applyCoreV1.ConfigMapEnvSourceApplyConfiguration{
+							LocalObjectReferenceApplyConfiguration: applyCoreV1.LocalObjectReferenceApplyConfiguration{
+								Name: &container.EnvFrom[0].ConfigMapRef.Name,
+							},
+						},
+					},
+				},
+			})
+	}
+	return containerApplyConfig
 }
 
 // RemoveResource removes the file from the filesystem. The path where

@@ -8,7 +8,6 @@ import (
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
-	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -22,8 +21,6 @@ type CronJobFactory struct {
 
 var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 
-// TODO: change the image
-// const image = "cataclyst01/skopeo:v1"
 const image = "quay.io/skopeo/stable"
 
 var clientSet *kubernetes.Clientset
@@ -105,6 +102,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 	skopeoCommand.Stderr = os.Stderr
 	skopeoCommand.Stdout = os.Stdout
 
+	// TODO: go text pkg
 	scriptContents := fmt.Sprintf("%s%s\n%s",
 		`repoArray=(${REPOSITORIES})
 for repo in "${repoArray[@]}"
@@ -120,16 +118,35 @@ do
 
 	finalArgs := []string{"-c", scriptContents}
 
-	cronJob := new(cjf, concatenateArrayOfStrings(fullPathOfSourceRepositories), remoteRegistry, finalArgs)
+	labels := map[string]string{
+		"generator":       "registryman-skopeo",
+		"project":         cjf.project.GetName(),
+		"remote-registry": remoteRegistry.GetName()}
 
-	if err := cronJob.Deploy(ctx); err != nil {
-		if err.(*errors.StatusError).Status().Reason == "AlreadyExists" {
-			fmt.Printf("cronjob already exists for project %s\n", cjf.project.GetName())
-		}
+	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+	if manipulatorCtx == nil {
+		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+	}
+	manifestManipulator, ok := manipulatorCtx.(config.ManifestManipulator)
+	if !ok {
+		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+	}
+
+	configMapData := map[string]string{
+		"REPOSITORIES": concatenateArrayOfStrings(fullPathOfSourceRepositories),
+	}
+	configMap := createConfigMapForEnvvar(labels, configMapData)
+
+	cronJob := create(labels, remoteRegistry, finalArgs, configMap.Name)
+
+	err = manifestManipulator.WriteResource(ctx, configMap)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	err = manifestManipulator.WriteResource(ctx, cronJob.resource)
+
+	return nil, err
 }
 
 func (cjf *CronJobFactory) GetAllCronJobs(registryName string, ctx context.Context) (*[]CronJob, error) {

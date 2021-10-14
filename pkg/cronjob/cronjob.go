@@ -1,7 +1,6 @@
 package cronjob
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -19,27 +18,22 @@ type CronJob struct {
 
 var _ globalregistry.ReplicationRule = &CronJob{}
 
-func new(cronJobFactory *CronJobFactory, repositories string, remoteRegistry globalregistry.Registry, args []string) *CronJob {
-	var backOffLimit int32 = 0
-	//volumeName := "skopeo-script"
-	cronJobUniqueName := fmt.Sprintf("%s-job", cronJobFactory.project.GetName())
-
-	envVar := v1.EnvVar{
-		Name:  "REPOSITORIES",
-		Value: repositories,
-	}
+func create(labels map[string]string, remoteRegistry globalregistry.Registry, args []string, configMapName string) *CronJob {
+	var backOffLimit int32 = 1
+	cronJobUniqueName := fmt.Sprintf("%s-job", labels["project"])
+	startingDeadlineSecPtr := new(int64)
+	*startingDeadlineSecPtr = 200
 
 	cronJob := &CronJob{
 		remoteRegistry: remoteRegistry,
 		resource: &v1beta1.CronJob{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CronJob",
+				APIVersion: "v1beta1",
+			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      cronJobUniqueName,
-				Namespace: cronJobFactory.source.GetName(),
-				Labels: map[string]string{
-					"source":          "registryman-skopeo",
-					"project":         cronJobFactory.project.GetName(),
-					"remote-registry": remoteRegistry.GetName(),
-				},
+				Name:   cronJobUniqueName,
+				Labels: labels,
 			},
 			Spec: v1beta1.CronJobSpec{
 				JobTemplate: v1beta1.JobTemplateSpec{
@@ -53,7 +47,15 @@ func new(cronJobFactory *CronJobFactory, repositories string, remoteRegistry glo
 										Command:         []string{"/bin/bash"},
 										Args:            args,
 										ImagePullPolicy: v1.PullAlways,
-										Env:             append([]v1.EnvVar{}, envVar),
+										EnvFrom: []v1.EnvFromSource{
+											{
+												ConfigMapRef: &v1.ConfigMapEnvSource{
+													LocalObjectReference: v1.LocalObjectReference{
+														Name: configMapName,
+													},
+												},
+											},
+										},
 									},
 								},
 								RestartPolicy: v1.RestartPolicyNever,
@@ -62,8 +64,9 @@ func new(cronJobFactory *CronJobFactory, repositories string, remoteRegistry glo
 						BackoffLimit: &backOffLimit,
 					},
 				},
-				Schedule:          "*/1 * * * *",
-				ConcurrencyPolicy: v1beta1.ForbidConcurrent,
+				Schedule:                "*/1 * * * *",
+				ConcurrencyPolicy:       v1beta1.ForbidConcurrent,
+				StartingDeadlineSeconds: startingDeadlineSecPtr,
 			},
 		},
 	}
@@ -72,14 +75,20 @@ func new(cronJobFactory *CronJobFactory, repositories string, remoteRegistry glo
 	// TODO: Go converter package for dynamic cronjob version generation
 }
 
-// TODO: cj in registry's namespace
-func (cj *CronJob) Deploy(ctx context.Context) error {
-	_, err := clientSet.BatchV1beta1().CronJobs(cj.resource.Namespace).Create(ctx, cj.resource, metav1.CreateOptions{})
-	return err
-}
-
-func (cj *CronJob) Delete(ctx context.Context) error {
-	return clientSet.BatchV1beta1().CronJobs(cj.resource.Namespace).Delete(ctx, cj.resource.Name, metav1.DeleteOptions{})
+func createConfigMapForEnvvar(labels, data map[string]string) *v1.ConfigMap {
+	configMapUniqueName := fmt.Sprintf("%s-cm", labels["project"])
+	configMap := &v1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   configMapUniqueName,
+			Labels: labels,
+		},
+		Data: data,
+	}
+	return configMap
 }
 
 func (cj *CronJob) Direction() string {

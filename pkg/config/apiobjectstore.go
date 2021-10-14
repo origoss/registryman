@@ -48,14 +48,32 @@ func init() {
 	scheme.AddKnownTypeWithName(secret.GroupVersionKind(), secret)
 }
 
-// ApiObjectStore interface is an abstract interface that hides the difference
-// between the local file and Kubernetes resource based config management.
-type ApiObjectStore interface {
+type ResourceManipulatorContextKey string
+
+// ResourceManipulatorContextKey is a context key that may be parsed by a
+// SideEffect. The value can be used by the SideEffect to create or to remove
+// manifest files.
+//
+// The value shall implement the following interface:
+//   type manifestManipulator interface {
+//	WriteManifest(filename string, obj runtime.Object) error
+//	RemoveManifest(filename string) error
+//   }
+var ResourceManipulatorKey = ResourceManipulatorContextKey("resource-manipulator")
+
+// TODO: comment, rename to ResourceManipulator
+type ManifestManipulator interface {
 	// WriteResource serializes the object specified by the obj parameter.
 	WriteResource(ctx context.Context, obj runtime.Object) error
 
 	// RemoveResource removes the file from the filesystem.
 	RemoveResource(ctx context.Context, obj runtime.Object) error
+}
+
+// ApiObjectStore interface is an abstract interface that hides the difference
+// between the local file and Kubernetes resource based config management.
+type ApiObjectStore interface {
+	ManifestManipulator
 
 	// GetRegistries returns the parsed registries as API objects.
 	GetRegistries(context.Context) []*api.Registry

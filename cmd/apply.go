@@ -61,7 +61,7 @@ state of the system.`,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		sideeffectCtx := context.WithValue(ctx, reconciler.SideEffectManifestManipulator, aos)
+		sideeffectCtx := context.WithValue(ctx, config.ResourceManipulatorKey, aos)
 		expectedProvider := config.NewExpectedProvider(aos)
 		expectedRegistries := expectedProvider.GetRegistries(ctx)
 		defer cancel()
@@ -86,7 +86,7 @@ state of the system.`,
 			for _, action := range actions {
 				if !dryRun {
 					logger.Info(action.String())
-					sideEffect, err := action.Perform(ctx, actualRegistry)
+					sideEffect, err := action.Perform(sideeffectCtx, actualRegistry)
 					if err != nil {
 						if errors.Is(err, globalregistry.ErrRecoverableError) {
 							logger.V(-1).Info(err.Error())

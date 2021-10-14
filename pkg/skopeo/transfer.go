@@ -48,7 +48,6 @@ type transfer struct {
 	password string
 }
 
-// TODO: create job with kubernetes lib + common interface
 // NewForCli creates a new transfer struct.
 func NewForCli(username, password string) (*transfer, error) {
 	err := os.WriteFile(commandPath, skopeoBinary, 0711)
