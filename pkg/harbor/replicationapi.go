@@ -40,12 +40,11 @@ func (r *registry) listReplicationRules(ctx context.Context) ([]globalregistry.R
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 	r.logger.V(1).Info("sending HTTP request", "req-uri", req.RequestURI)
 
 	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
 
-	resp, err := r.do(req)
+	resp, err := r.do(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +104,12 @@ func (r *registry) createReplicationRule(ctx context.Context, project globalregi
 		Update_time:  time.Time{}.Format(time.RFC3339),
 	}
 	var replTrigger *replicationTrigger
-	switch trigger {
+	triggerWords := strings.SplitN(trigger, " ", 2)
+	triggerWord := trigger
+	if len(triggerWords) > 0 {
+		triggerWord = triggerWords[0]
+	}
+	switch triggerWord {
 	case "manual":
 		replTrigger = &replicationTrigger{
 			Type: "manual",
@@ -113,6 +117,20 @@ func (r *registry) createReplicationRule(ctx context.Context, project globalregi
 	case "event_based":
 		replTrigger = &replicationTrigger{
 			Type: "event_based",
+		}
+	case "cron":
+		if len(triggerWords) == 0 {
+			return nil, fmt.Errorf("invalid cron format: %s", trigger)
+		}
+		replTrigger = &replicationTrigger{
+			Type: "scheduled",
+			TriggerSettings: triggerSettings{
+				// Harbor implements a cron rule for the seconds
+				// as the first element in the cron string. We
+				// set it to constant 0 since we don't want cron
+				// replication on the granularity of seconds.
+				Cron: "0 " + triggerWords[1],
+			},
 		}
 	default:
 		return nil, fmt.Errorf("invalid replication trigger: %s", trigger)
@@ -187,12 +205,11 @@ func (r *registry) createReplicationRule(ctx context.Context, project globalregi
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
 
 	req.Header["Content-Type"] = []string{"application/json"}
 	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
 
-	resp, err := r.do(req)
+	resp, err := r.do(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -225,13 +242,12 @@ func (r *registry) deleteReplicationRule(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-	req = req.WithContext(ctx)
 	r.logger.V(1).Info("sending HTTP request", "req-uri", req.URL)
 
 	req.Header["Content-Type"] = []string{"application/json"}
 	req.SetBasicAuth(r.GetUsername(), r.GetPassword())
 
-	resp, err := r.do(req)
+	resp, err := r.do(ctx, req)
 	if err != nil {
 		return err
 	}
