@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -96,7 +97,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 		return nil, err
 	}
 
-	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, &[]string{remoteRegistry.GetUsername(), remoteRegistry.GetPassword()}, nil)
+	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, remoteRegistry.GetUsername(), remoteRegistry.GetPassword(), nil)
 	fmt.Println(skopeoCommand)
 
 	skopeoCommand.Stderr = os.Stderr
@@ -121,15 +122,12 @@ do
 	labels := map[string]string{
 		"generator":       "registryman-skopeo",
 		"project":         cjf.project.GetName(),
+		"direction":       direction,
 		"remote-registry": remoteRegistry.GetName()}
 
-	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
-	if manipulatorCtx == nil {
-		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
-	}
-	manifestManipulator, ok := manipulatorCtx.(config.ManifestManipulator)
-	if !ok {
-		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+	manifestManipulator, err := createManifestManipulator(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	configMapData := map[string]string{
@@ -137,7 +135,8 @@ do
 	}
 	configMap := createConfigMapForEnvvar(labels, configMapData)
 
-	cronJob := create(labels, remoteRegistry, finalArgs, configMap.Name)
+	schedule := strings.SplitN(trigger, " ", 2)[1]
+	cronJob := create(labels, schedule, configMap.Name, direction, remoteRegistry, finalArgs)
 
 	err = manifestManipulator.WriteResource(ctx, configMap)
 	if err != nil {
@@ -149,19 +148,26 @@ do
 	return nil, err
 }
 
-func (cjf *CronJobFactory) GetAllCronJobs(registryName string, ctx context.Context) (*[]CronJob, error) {
-	cronJobList, err := clientSet.BatchV1beta1().CronJobs(registryName).List(ctx, v1.ListOptions{})
+func (cjf *CronJobFactory) GetAllCronJobs(ctx context.Context, project globalregistry.Project) (*[]CronJob, error) {
+	namespace, _, err := kubeConfig.Namespace()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get Kubernetes namespace: %w", err)
+	}
 
+	cronJobList, err := clientSet.BatchV1beta1().CronJobs(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	var results []CronJob
 	for _, cj := range cronJobList.Items {
-		cjObject := CronJob{
-			resource: &cj,
+		if cj.Labels["project"] == project.GetName() {
+			cjObject := CronJob{
+				resource: &cj,
+				dir:      cj.Labels["direction"],
+			}
+			results = append(results, cjObject)
 		}
-		results = append(results, cjObject)
 	}
 
 	return &results, nil
@@ -177,4 +183,16 @@ func concatenateArrayOfStrings(arg []string) string {
 		}
 	}
 	return result
+}
+
+func createManifestManipulator(ctx context.Context) (config.ManifestManipulator, error) {
+	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+	if manipulatorCtx == nil {
+		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+	}
+	manifestManipulator, ok := manipulatorCtx.(config.ManifestManipulator)
+	if !ok {
+		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+	}
+	return manifestManipulator, nil
 }

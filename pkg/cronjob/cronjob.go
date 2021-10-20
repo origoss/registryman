@@ -1,6 +1,7 @@
 package cronjob
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -17,8 +18,9 @@ type CronJob struct {
 }
 
 var _ globalregistry.ReplicationRule = &CronJob{}
+var _ globalregistry.DestructibleReplicationRule = &CronJob{}
 
-func create(labels map[string]string, remoteRegistry globalregistry.Registry, args []string, configMapName string) *CronJob {
+func create(labels map[string]string, schedule, configMapName, direction string, remoteRegistry globalregistry.Registry, args []string) *CronJob {
 	var backOffLimit int32 = 1
 	cronJobUniqueName := fmt.Sprintf("%s-job", labels["project"])
 	startingDeadlineSecPtr := new(int64)
@@ -26,6 +28,7 @@ func create(labels map[string]string, remoteRegistry globalregistry.Registry, ar
 
 	cronJob := &CronJob{
 		remoteRegistry: remoteRegistry,
+		dir:            direction,
 		resource: &v1beta1.CronJob{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "CronJob",
@@ -64,7 +67,7 @@ func create(labels map[string]string, remoteRegistry globalregistry.Registry, ar
 						BackoffLimit: &backOffLimit,
 					},
 				},
-				Schedule:                "*/1 * * * *",
+				Schedule:                schedule,
 				ConcurrencyPolicy:       v1beta1.ForbidConcurrent,
 				StartingDeadlineSeconds: startingDeadlineSecPtr,
 			},
@@ -91,20 +94,16 @@ func createConfigMapForEnvvar(labels, data map[string]string) *v1.ConfigMap {
 	return configMap
 }
 
+func (cj *CronJob) Resource() *v1beta1.CronJob {
+	return cj.resource
+}
+
 func (cj *CronJob) Direction() string {
 	return cj.dir
 }
 
 func (cj *CronJob) GetName() string {
 	return cj.resource.Name
-}
-
-func (cj *CronJob) GetNamespace() string {
-	return cj.resource.Namespace
-}
-
-func (cj *CronJob) GetProjectType() string {
-	return ""
 }
 
 func (cj *CronJob) GetProjectName() string {
@@ -116,5 +115,17 @@ func (cj *CronJob) RemoteRegistry() globalregistry.Registry {
 }
 
 func (cj *CronJob) Trigger() string {
-	return ""
+	return fmt.Sprintf("%s %s", "cron", cj.resource.Spec.Schedule)
+}
+
+func (cj *CronJob) Type() globalregistry.ReplicationType {
+	return globalregistry.SkopeoReplication
+}
+
+func (cj *CronJob) Delete(ctx context.Context) error {
+	manifestManipulator, err := createManifestManipulator(ctx)
+	if err != nil {
+		return err
+	}
+	return manifestManipulator.RemoveResource(ctx, cj.resource)
 }

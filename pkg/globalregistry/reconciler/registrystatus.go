@@ -21,6 +21,7 @@ import (
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
+	"github.com/kubermatic-labs/registryman/pkg/cronjob"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -115,6 +116,7 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 			projectStatuses[i].Members = make([]api.MemberStatus, 0)
 		}
 		projectWithReplication, ok := project.(globalregistry.ProjectWithReplication)
+
 		if ok {
 			replicationRules, err := projectWithReplication.GetReplicationRules(ctx, "", "")
 			if err != nil {
@@ -125,13 +127,29 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 				projectStatuses[i].ReplicationRules[n].RemoteRegistryName = rule.RemoteRegistry().GetName()
 				projectStatuses[i].ReplicationRules[n].Trigger = string(rule.Trigger())
 				projectStatuses[i].ReplicationRules[n].Direction = rule.Direction()
-				// TODO fill in Type field
+				projectStatuses[i].ReplicationRules[n].Type = string(rule.Type())
 			}
 		} else {
 			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, 0)
 		}
 		// TODO: extend replication rule list with replication rules from API object store (i.e. Kubernetes)
 		// cronjob.GetReplicationRulesOfProject(project) => []globalregistry.ReplicationRule
+		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
+		if err != nil {
+			return nil, err
+		}
+		cronJobReplicationRules, err := cronJobFactory.GetAllCronJobs(ctx, project)
+		if err != nil {
+			return nil, err
+		}
+		for _, rule := range *cronJobReplicationRules {
+			projectStatuses[i].ReplicationRules = append(projectStatuses[i].ReplicationRules, api.ReplicationRuleStatus{
+				RemoteRegistryName: rule.Resource().Labels["remote-registry"],
+				Trigger:            string(rule.Trigger()),
+				Direction:          rule.Direction(),
+				Type:               string(rule.Type()),
+			})
+		}
 
 		projectWithStorage, ok := project.(globalregistry.ProjectWithStorage)
 		if ok {
