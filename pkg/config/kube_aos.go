@@ -226,14 +226,14 @@ func createContainerApplyConfiguration(cj *v1beta1.CronJob) []applyCoreV1.Contai
 // creates the ApiObjectStore.
 func (aos *kubeApiObjectStore) RemoveResource(ctx context.Context, obj runtime.Object) error {
 	gvk := obj.GetObjectKind().GroupVersionKind()
-	logger.V(1).Info("WriteResource",
+	logger.V(1).Info("RemoveResource",
 		"group", gvk.Group,
 		"version", gvk.Version,
 		"kind", gvk.Kind,
 	)
 	switch gvk {
 	default:
-		logger.V(-1).Info("WriterResource invoked, unsupported resource",
+		logger.V(-1).Info("RemoveResource invoked, unsupported resource",
 			"group", gvk.Group,
 			"version", gvk.Version,
 			"kind", gvk.Kind,
@@ -254,6 +254,24 @@ func (aos *kubeApiObjectStore) RemoveResource(ctx context.Context, obj runtime.O
 		err = aos.kubeClient.CoreV1().Secrets(namespace).Delete(ctx, secret.GetName(), v1.DeleteOptions{})
 		if err != nil {
 			return fmt.Errorf("error removing secret: %w", err)
+		}
+	case schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1beta1",
+		Kind:    "CronJob",
+	}:
+		cronJob := obj.(*v1beta1.CronJob)
+		namespace, _, err := kubeConfig.Namespace()
+		if err != nil {
+			return fmt.Errorf("cannot get Kubernetes namespace: %w", err)
+		}
+		logger.V(1).Info("removing cronJob",
+			"name", cronJob.GetName(),
+		)
+
+		err = aos.kubeClient.BatchV1beta1().CronJobs(namespace).Delete(ctx, cronJob.Name, v1.DeleteOptions{})
+		if err != nil {
+			return fmt.Errorf("error removing cronJob: %w", err)
 		}
 	}
 	return nil

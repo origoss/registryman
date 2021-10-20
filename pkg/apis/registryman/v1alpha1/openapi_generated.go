@@ -760,8 +760,16 @@ func schema_pkg_apis_registryman_v1alpha1_ReplicationRuleStatus(ref common.Refer
 							Format:      "",
 						},
 					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type shows where the replication logic is implemented.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"remoteRegistryName", "trigger", "direction"},
+				Required: []string{"remoteRegistryName", "trigger", "direction", "type"},
 			},
 		},
 	}
