@@ -35,11 +35,12 @@ type rRuleAddAction struct {
 var _ Action = &rRuleAddAction{}
 
 func (ra *rRuleAddAction) String() string {
-	return fmt.Sprintf("adding replication rule for %s: %s [%s] on %s",
+	return fmt.Sprintf("adding replication rule for %s: %s [%s] on %s with %s",
 		ra.projectName,
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger,
+		ra.Type,
 	)
 }
 
@@ -53,13 +54,8 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
 
-	replicationSupport, ok := reg.GetOptions().(globalregistry.CanReplicate)
-	if !ok {
-		fmt.Printf("no annotations found for replication, falling back to skopeo\n")
-	}
-
-	// TODO: switch cases
-	if ok && replicationSupport.SupportsProjectReplication() == "registry" {
+	switch ra.Type {
+	case "registry":
 		replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
 		if !ok {
 			// registry does not support project level replication
@@ -69,18 +65,17 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 		if err != nil {
 			return nilEffect, err
 		}
-	} else {
+	case "skopeo":
 		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
 		if err != nil {
 			return nilEffect, err
 		}
-		currentCjs, err := cronJobFactory.GetAllCronJobs(reg.GetName(), ctx)
-		fmt.Println(currentCjs)
 		_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
 		if err != nil {
 			return nilEffect, err
 		}
 	}
+
 	return nilEffect, nil
 }
 
@@ -93,11 +88,12 @@ type rRuleRemoveAction struct {
 var _ Action = &rRuleRemoveAction{}
 
 func (ra *rRuleRemoveAction) String() string {
-	return fmt.Sprintf("removing replication rule for %s: %s [%s] on %s",
+	return fmt.Sprintf("removing replication rule for %s: %s [%s] on %s with %s",
 		ra.projectName,
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger,
+		ra.Type,
 	)
 }
 

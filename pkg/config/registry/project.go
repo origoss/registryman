@@ -56,13 +56,12 @@ func (proj *project) GetMembers(context.Context) ([]globalregistry.ProjectMember
 // 	return proj.filterReplicationRules(ctx, ReplicationRuleIsNotOfType(globalregistry.SkopeoReplication), trigger, direction)
 // }
 
-func (proj *project) GetReplicationRules(ctx context.Context, filter ReplicationRuleFilter, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
+func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
 	rules := []globalregistry.ReplicationRule{}
 	switch proj.Spec.Type {
 	case api.GlobalProjectType:
-	Loop:
 		for _, r := range proj.registry.apiProvider.GetRegistries(ctx) {
-			// remoteReg := New(r, proj.registry.apiProvider)
+			remoteReg := New(r, proj.registry.apiProvider)
 			// if registryWithReplicate, ok := remoteReg.GetOptions().(globalregistry.CanReplicate); ok {
 			// 	if !filter(registryWithReplicate.SupportsProjectReplication()) {
 			// 		continue Loop

@@ -39,6 +39,7 @@ type ReplicationRule interface {
 	// replication.
 	RemoteRegistry() Registry
 
+	// Type returns the replication type, e.g. skopeo or registry based.
 	Type() ReplicationType
 }
 

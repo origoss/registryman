@@ -19,6 +19,7 @@ package harbor
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
@@ -96,7 +97,16 @@ func (r *replicationRule) GetName() string {
 }
 
 func (r *replicationRule) Trigger() string {
-	return r.ReplTrigger.Type
+	switch r.ReplTrigger.Type {
+	case "scheduled":
+		cronElems := strings.SplitN(r.ReplTrigger.TriggerSettings.Cron, " ", 10)
+		if len(cronElems) >= 2 {
+			return fmt.Sprintf("cron %s", strings.Join(cronElems[1:], " "))
+		}
+		return fmt.Sprintf("cron %s", r.ReplTrigger.TriggerSettings.Cron)
+	default:
+		return r.ReplTrigger.Type
+	}
 }
 
 func (r *replicationRule) Direction() string {
@@ -109,4 +119,8 @@ func (r *replicationRule) RemoteRegistry() globalregistry.Registry {
 
 func (r *replicationRule) Delete(ctx context.Context) error {
 	return r.registry.deleteReplicationRule(ctx, r.ID)
+}
+
+func (r *replicationRule) Type() globalregistry.ReplicationType {
+	return globalregistry.RegistryReplication
 }

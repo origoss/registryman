@@ -128,10 +128,15 @@ func (rule *replicationRule) RemoteRegistry() globalregistry.Registry {
 }
 
 func (rule *replicationRule) Type() globalregistry.ReplicationType {
-	switch rule.Trigger() {
+	triggerWords := strings.SplitN(rule.Trigger(), " ", 2)
+	triggerWord := ""
+	if len(triggerWords) > 0 {
+		triggerWord = triggerWords[0]
+	}
+
+	switch triggerWord {
 	case "manual", "event_based":
 		return globalregistry.RegistryReplication
-	// TODO implement getting the first element of trigger string to handle 'cron * * * * *'
 	case "cron":
 		switch rule.replicationAnnotation {
 		case "registry":
@@ -140,6 +145,6 @@ func (rule *replicationRule) Type() globalregistry.ReplicationType {
 			return globalregistry.SkopeoReplication
 		}
 	default:
-		// TODO default cron value
+		return globalregistry.SkopeoReplication
 	}
 }
