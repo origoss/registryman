@@ -20,10 +20,8 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	_ "github.com/kubermatic-labs/registryman/pkg/acr"
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
-	_ "github.com/kubermatic-labs/registryman/pkg/harbor"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
