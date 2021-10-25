@@ -61,13 +61,13 @@ state of the system.`,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		sideeffectCtx := context.WithValue(ctx, config.ResourceManipulatorKey, aos)
+		manipulatorCtx := context.WithValue(ctx, config.ResourceManipulatorKey, aos)
 		expectedProvider := config.NewExpectedProvider(aos)
-		expectedRegistries := expectedProvider.GetRegistries(ctx)
+		expectedRegistries := expectedProvider.GetRegistries(manipulatorCtx)
 		defer cancel()
 		for _, expectedRegistry := range expectedRegistries {
 			logger.Info("inspecting registry", "registry_name", expectedRegistry.GetName())
-			regStatusExpected, err := reconciler.GetRegistryStatus(ctx, expectedRegistry)
+			regStatusExpected, err := reconciler.GetRegistryStatus(manipulatorCtx, expectedRegistry)
 			if err != nil {
 				return err
 			}
@@ -76,7 +76,7 @@ state of the system.`,
 			if err != nil {
 				return err
 			}
-			regStatusActual, err := reconciler.GetRegistryStatus(ctx, actualRegistry)
+			regStatusActual, err := reconciler.GetRegistryStatus(manipulatorCtx, actualRegistry)
 			if err != nil {
 				return err
 			}
@@ -86,7 +86,7 @@ state of the system.`,
 			for _, action := range actions {
 				if !dryRun {
 					logger.Info(action.String())
-					sideEffect, err := action.Perform(sideeffectCtx, actualRegistry)
+					sideEffect, err := action.Perform(manipulatorCtx, actualRegistry)
 					if err != nil {
 						if errors.Is(err, globalregistry.ErrRecoverableError) {
 							logger.V(-1).Info(err.Error())
@@ -94,7 +94,7 @@ state of the system.`,
 							return err
 						}
 					}
-					if err = sideEffect.Perform(sideeffectCtx); err != nil {
+					if err = sideEffect.Perform(manipulatorCtx); err != nil {
 						return err
 					}
 				} else {
