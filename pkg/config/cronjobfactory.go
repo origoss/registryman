@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/kubermatic-labs/registryman/pkg/config/registry"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
@@ -61,7 +60,7 @@ func NewCjFactory(source globalregistry.Registry, project globalregistry.Project
 	}, nil
 }
 
-func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegistry globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {
+func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegistry globalregistry.Registry, trigger globalregistry.ReplicationTrigger, direction string) (globalregistry.ReplicationRule, error) {
 	transfer := skopeo.NewForOperator(cjf.source.GetUsername(), cjf.source.GetPassword())
 
 	projectOfSourceRegistry := &ProjectOfRegistry{
@@ -132,8 +131,8 @@ do
 	}
 	configMap := createConfigMapForEnvvar(labels, configMapData)
 
-	schedule := strings.SplitN(trigger, " ", 2)[1]
-	cronJob := create(labels, schedule, configMap.Name, direction, remoteRegistry, finalArgs)
+	//schedule := strings.SplitN(trigger, " ", 2)[1]
+	cronJob := create(labels, configMap.Name, direction, remoteRegistry, finalArgs, trigger)
 
 	err = manifestManipulator.WriteResource(ctx, configMap)
 	if err != nil {

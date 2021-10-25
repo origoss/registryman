@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	batchv1 "k8s.io/api/batch/v1"
 	v1beta1 "k8s.io/api/batch/v1beta1"
@@ -11,16 +12,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type replicationTrigger struct {
+	triggerType     api.ReplicationTriggerType
+	triggerSchedule string
+}
+
+func (rt replicationTrigger) TriggerType() api.ReplicationTriggerType {
+	return rt.triggerType
+}
+
+func (rt replicationTrigger) TriggerSchedule() string {
+	return rt.triggerSchedule
+}
+
 type CronJob struct {
 	remoteRegistry globalregistry.Registry
 	dir            string
 	resource       *v1beta1.CronJob
+	replTrigger    *replicationTrigger
 }
 
 var _ globalregistry.ReplicationRule = &CronJob{}
 var _ globalregistry.DestructibleReplicationRule = &CronJob{}
+var _ globalregistry.ReplicationTrigger = replicationTrigger{}
 
-func create(labels map[string]string, schedule, configMapName, direction string, remoteRegistry globalregistry.Registry, args []string) *CronJob {
+func create(labels map[string]string, configMapName, direction string, remoteRegistry globalregistry.Registry, args []string, trigger globalregistry.ReplicationTrigger) *CronJob {
 	var backOffLimit int32 = 1
 	cronJobUniqueName := fmt.Sprintf("%s-job", labels["project"])
 	startingDeadlineSecPtr := new(int64)
@@ -67,7 +83,7 @@ func create(labels map[string]string, schedule, configMapName, direction string,
 						BackoffLimit: &backOffLimit,
 					},
 				},
-				Schedule:                schedule,
+				Schedule:                trigger.TriggerSchedule(),
 				ConcurrencyPolicy:       v1beta1.ForbidConcurrent,
 				StartingDeadlineSeconds: startingDeadlineSecPtr,
 			},
@@ -114,8 +130,9 @@ func (cj *CronJob) RemoteRegistry() globalregistry.Registry {
 	return cj.remoteRegistry
 }
 
-func (cj *CronJob) Trigger() string {
-	return fmt.Sprintf("%s %s", "cron", cj.resource.Spec.Schedule)
+func (cj *CronJob) Trigger() globalregistry.ReplicationTrigger {
+	return cj.replTrigger
+	//return fmt.Sprintf("%s %s", "cron", cj.resource.Spec.Schedule)
 }
 
 func (cj *CronJob) Type() globalregistry.ReplicationType {

@@ -52,11 +52,7 @@ func (proj *project) GetMembers(context.Context) ([]globalregistry.ProjectMember
 	return members, nil
 }
 
-// func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
-// 	return proj.filterReplicationRules(ctx, ReplicationRuleIsNotOfType(globalregistry.SkopeoReplication), trigger, direction)
-// }
-
-func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction string) ([]globalregistry.ReplicationRule, error) {
+func (proj *project) GetReplicationRules(ctx context.Context, trigger globalregistry.ReplicationTrigger, direction string) ([]globalregistry.ReplicationRule, error) {
 	rules := []globalregistry.ReplicationRule{}
 	switch proj.Spec.Type {
 	case api.GlobalProjectType:
@@ -79,7 +75,7 @@ func (proj *project) GetReplicationRules(ctx context.Context, trigger, direction
 						remote:                remoteReg,
 						replicationAnnotation: proj.Annotations["registryman.kubermatic.com/replication"],
 					}
-					if trigger != "" && trigger != repRule.Trigger() {
+					if trigger != nil && trigger != repRule.Trigger() {
 						continue
 					}
 					if direction != "" && direction != repRule.Direction() {

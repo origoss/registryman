@@ -188,7 +188,14 @@ spec:
                           trigger:
                             description: Trigger describes the event that shall trigger
                               the replication.
-                            type: string
+                            properties:
+                              schedule:
+                                type: string
+                              type:
+                                type: string
+                            required:
+                            - type
+                            type: object
                           type:
                             description: Type shows where the replication logic is
                               implemented.

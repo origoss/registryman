@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -36,6 +37,23 @@ type triggerSettings struct {
 type replicationTrigger struct {
 	Type            string          `json:"type"`
 	TriggerSettings triggerSettings `json:"trigger_settings"`
+}
+
+func (rt replicationTrigger) TriggerType() api.ReplicationTriggerType {
+	var tt api.ReplicationTriggerType
+	err := tt.UnmarshalText([]byte(rt.Type))
+	if err != nil {
+		panic(fmt.Errorf("unknown trigger type: %s", rt.Type))
+	}
+	return tt
+}
+
+func (rt replicationTrigger) TriggerSchedule() string {
+	scheduleWords := strings.SplitN(rt.TriggerSettings.Cron, "", 2)
+	if len(scheduleWords) != 2 {
+		return rt.TriggerSettings.Cron
+	}
+	return scheduleWords[1]
 }
 
 type replicationResponseBody struct {
@@ -96,17 +114,8 @@ func (r *replicationRule) GetName() string {
 	return r.name
 }
 
-func (r *replicationRule) Trigger() string {
-	switch r.ReplTrigger.Type {
-	case "scheduled":
-		cronElems := strings.SplitN(r.ReplTrigger.TriggerSettings.Cron, " ", 10)
-		if len(cronElems) >= 2 {
-			return fmt.Sprintf("cron %s", strings.Join(cronElems[1:], " "))
-		}
-		return fmt.Sprintf("cron %s", r.ReplTrigger.TriggerSettings.Cron)
-	default:
-		return r.ReplTrigger.Type
-	}
+func (r *replicationRule) Trigger() globalregistry.ReplicationTrigger {
+	return r.ReplTrigger
 }
 
 func (r *replicationRule) Direction() string {
