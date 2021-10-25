@@ -1,4 +1,4 @@
-package cronjob
+package config
 
 import (
 	"context"
@@ -6,12 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kubermatic-labs/registryman/pkg/config"
+	"github.com/kubermatic-labs/registryman/pkg/config/registry"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -25,8 +24,6 @@ var _ globalregistry.ReplicationRuleManipulatorProject = &CronJobFactory{}
 const image = "quay.io/skopeo/stable"
 
 var clientSet *kubernetes.Clientset
-var clientConfig *rest.Config
-var kubeConfig clientcmd.ClientConfig
 
 func init() {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -67,12 +64,12 @@ func NewCjFactory(source globalregistry.Registry, project globalregistry.Project
 func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegistry globalregistry.Registry, trigger, direction string) (globalregistry.ReplicationRule, error) {
 	transfer := skopeo.NewForOperator(cjf.source.GetUsername(), cjf.source.GetPassword())
 
-	projectOfSourceRegistry := &config.ProjectOfRegistry{
+	projectOfSourceRegistry := &ProjectOfRegistry{
 		Registry: cjf.source,
 		Project:  cjf.project,
 	}
 
-	projectOfDestinationRegistry := &config.ProjectOfRegistry{
+	projectOfDestinationRegistry := &ProjectOfRegistry{
 		Registry: remoteRegistry,
 		Project:  cjf.project,
 	}
@@ -148,29 +145,58 @@ do
 	return nil, err
 }
 
-func (cjf *CronJobFactory) GetAllCronJobs(ctx context.Context, project globalregistry.Project) (*[]CronJob, error) {
+func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project globalregistry.Project, sourceRegistryName string) ([]CronJob, error) {
 	namespace, _, err := kubeConfig.Namespace()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Kubernetes namespace: %w", err)
 	}
 
-	cronJobList, err := clientSet.BatchV1beta1().CronJobs(namespace).List(ctx, v1.ListOptions{})
+	cronJobList, err := clientSet.BatchV1beta1().CronJobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	var results []CronJob
 	for _, cj := range cronJobList.Items {
-		if cj.Labels["project"] == project.GetName() {
+		if cj.Labels["project"] == project.GetName() && cj.Labels["remote-registry"] != sourceRegistryName {
+			remoteRegistryByName, err := getRegistryByName(ctx, cj.Labels["remote-registry"])
+			if err != nil {
+				return nil, err
+			}
+			cj.TypeMeta = metav1.TypeMeta{
+				Kind:       "CronJob",
+				APIVersion: "v1beta1",
+			}
+
 			cjObject := CronJob{
-				resource: &cj,
-				dir:      cj.Labels["direction"],
+				// remoteRegistry: label -> registry_name -> kube API.GetRegistry(registry_name) -> api.Registry -> config/registry.New(api.Registry) -> globalregistry.Registry
+				remoteRegistry: remoteRegistryByName,
+				resource:       &cj,
+				dir:            cj.Labels["direction"],
 			}
 			results = append(results, cjObject)
 		}
 	}
 
-	return &results, nil
+	return results, nil
+}
+
+func getRegistryByName(ctx context.Context, name string) (globalregistry.Registry, error) {
+	manipulatorCtx := ctx.Value(ResourceManipulatorKey)
+	if manipulatorCtx == nil {
+		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+	}
+	kube_aos := manipulatorCtx.(ApiObjectStore)
+	registries := kube_aos.GetRegistries(ctx)
+
+	for _, r := range registries {
+		if r.Name == name {
+			registryFound := registry.New(r, kube_aos)
+			return registryFound, nil
+		}
+	}
+	return nil, fmt.Errorf("registry not found with name %s", name)
+
 }
 
 func concatenateArrayOfStrings(arg []string) string {
@@ -185,12 +211,12 @@ func concatenateArrayOfStrings(arg []string) string {
 	return result
 }
 
-func createManifestManipulator(ctx context.Context) (config.ManifestManipulator, error) {
-	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+func createManifestManipulator(ctx context.Context) (ManifestManipulator, error) {
+	manipulatorCtx := ctx.Value(ResourceManipulatorKey)
 	if manipulatorCtx == nil {
 		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
 	}
-	manifestManipulator, ok := manipulatorCtx.(config.ManifestManipulator)
+	manifestManipulator, ok := manipulatorCtx.(ManifestManipulator)
 	if !ok {
 		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
 	}

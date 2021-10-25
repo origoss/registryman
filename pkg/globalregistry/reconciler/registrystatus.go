@@ -21,7 +21,6 @@ import (
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
-	"github.com/kubermatic-labs/registryman/pkg/cronjob"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -134,22 +133,6 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 		}
 		// TODO: extend replication rule list with replication rules from API object store (i.e. Kubernetes)
 		// cronjob.GetReplicationRulesOfProject(project) => []globalregistry.ReplicationRule
-		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
-		if err != nil {
-			return nil, err
-		}
-		cronJobReplicationRules, err := cronJobFactory.GetAllCronJobs(ctx, project)
-		if err != nil {
-			return nil, err
-		}
-		for _, rule := range *cronJobReplicationRules {
-			projectStatuses[i].ReplicationRules = append(projectStatuses[i].ReplicationRules, api.ReplicationRuleStatus{
-				RemoteRegistryName: rule.Resource().Labels["remote-registry"],
-				Trigger:            string(rule.Trigger()),
-				Direction:          rule.Direction(),
-				Type:               string(rule.Type()),
-			})
-		}
 
 		projectWithStorage, ok := project.(globalregistry.ProjectWithStorage)
 		if ok {

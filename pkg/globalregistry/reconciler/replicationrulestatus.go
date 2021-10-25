@@ -22,7 +22,6 @@ import (
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
-	"github.com/kubermatic-labs/registryman/pkg/cronjob"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -66,7 +65,7 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 			return nilEffect, err
 		}
 	case "skopeo":
-		cronJobFactory, err := cronjob.NewCjFactory(reg, project)
+		cronJobFactory, err := config.NewCjFactory(reg, project)
 		if err != nil {
 			return nilEffect, err
 		}

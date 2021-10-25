@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -303,6 +304,19 @@ func (p *project) GetReplicationRules(ctx context.Context, trigger, direction st
 			}
 			results = append(results, replRule)
 		}
+	}
+
+	cronJobFactory, err := config.NewCjFactory(p.registry, p)
+	if err != nil {
+		return nil, err
+	}
+	cronJobReplicationRules, err := cronJobFactory.GetAllCronJobsForProject(ctx, p, p.registry.GetName())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rule := range cronJobReplicationRules {
+		results = append(results, &rule)
 	}
 	return results, nil
 }
