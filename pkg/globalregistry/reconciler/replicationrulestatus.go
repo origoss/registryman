@@ -39,6 +39,7 @@ func (ra *rRuleAddAction) String() string {
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
+		ra.Type,
 	)
 }
 
@@ -91,6 +92,7 @@ func (ra *rRuleRemoveAction) String() string {
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
+		ra.Type,
 	)
 }
 

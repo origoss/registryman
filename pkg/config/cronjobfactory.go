@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config/registry"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
@@ -172,6 +173,10 @@ func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project
 				remoteRegistry: remoteRegistryByName,
 				resource:       &cj,
 				dir:            cj.Labels["direction"],
+				replTrigger: &replicationTrigger{
+					triggerType:     v1alpha1.CronReplicationTriggerType,
+					triggerSchedule: cj.Spec.Schedule,
+				},
 			}
 			results = append(results, cjObject)
 		}
