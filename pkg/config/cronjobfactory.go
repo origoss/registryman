@@ -3,12 +3,12 @@ package config
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config/registry"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -64,22 +64,57 @@ func NewCjFactory(source globalregistry.Registry, project globalregistry.Project
 func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegistry globalregistry.Registry, trigger globalregistry.ReplicationTrigger, direction string) (globalregistry.ReplicationRule, error) {
 	transfer := skopeo.NewForOperator(cjf.source.GetUsername(), cjf.source.GetPassword())
 
-	projectOfSourceRegistry := &ProjectOfRegistry{
-		Registry: cjf.source,
-		Project:  cjf.project,
-	}
-
 	projectOfDestinationRegistry := &ProjectOfRegistry{
 		Registry: remoteRegistry,
 		Project:  cjf.project,
 	}
 
-	projectFullPathOfSource, err := projectOfSourceRegistry.GenerateProjectRepoName()
+	projectFullPathOfDestination, err := projectOfDestinationRegistry.GenerateProjectRepoName()
 	if err != nil {
 		return nil, err
 	}
 
-	projectFullPathOfDestination, err := projectOfDestinationRegistry.GenerateProjectRepoName()
+	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, remoteRegistry.GetUsername(), remoteRegistry.GetPassword(), nil)
+	fmt.Println(skopeoCommand)
+
+	// TODO: go text pkg
+	scriptContents := fmt.Sprintf("%s%s\n%s",
+		`repoArray=(${REPOSITORIES})
+for repo in "${repoArray[@]}"
+do
+	`, concatenateArrayOfStrings(skopeoCommand.Args), "done")
+
+	finalArgs := []string{"-c", scriptContents}
+
+	labels := map[string]string{
+		"generator": "registryman-skopeo",
+		"project":   cjf.project.GetName(),
+		//"direction":       direction,
+		"remote-registry": remoteRegistry.GetName()}
+
+	repositories, err := cjf.getRepositories(ctx, remoteRegistry)
+	if err != nil {
+		return nil, err
+	}
+
+	configMap, err := cjf.ApplyConfigMapForRepositories(ctx, repositories, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	cronJob := create(labels, configMap.Name, direction, remoteRegistry, finalArgs, trigger)
+	err = writeCronJob(ctx, cronJob)
+
+	return cronJob, err
+}
+
+func (cjf *CronJobFactory) getRepositories(ctx context.Context, remoteRegistry globalregistry.Registry) ([]string, error) {
+	projectOfSourceRegistry := &ProjectOfRegistry{
+		Registry: cjf.source,
+		Project:  cjf.project,
+	}
+
+	projectFullPathOfSource, err := projectOfSourceRegistry.GenerateProjectRepoName()
 	if err != nil {
 		return nil, err
 	}
@@ -89,60 +124,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 		return nil, fmt.Errorf("%s does not have repositories", projectFullPathOfSource)
 	}
 
-	repositories, err := projectWithRepositories.GetRepositories(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, remoteRegistry.GetUsername(), remoteRegistry.GetPassword(), nil)
-	fmt.Println(skopeoCommand)
-
-	skopeoCommand.Stderr = os.Stderr
-	skopeoCommand.Stdout = os.Stdout
-
-	// TODO: go text pkg
-	scriptContents := fmt.Sprintf("%s%s\n%s",
-		`repoArray=(${REPOSITORIES})
-for repo in "${repoArray[@]}"
-do
-	`, concatenateArrayOfStrings(skopeoCommand.Args), "done")
-
-	var fullPathOfSourceRepositories []string
-
-	for _, repoName := range repositories {
-		repoFullPathOfSource := fmt.Sprintf("%s/%s", projectFullPathOfSource, repoName)
-		fullPathOfSourceRepositories = append(fullPathOfSourceRepositories, repoFullPathOfSource)
-	}
-
-	finalArgs := []string{"-c", scriptContents}
-
-	labels := map[string]string{
-		"generator":       "registryman-skopeo",
-		"project":         cjf.project.GetName(),
-		"direction":       direction,
-		"remote-registry": remoteRegistry.GetName()}
-
-	manifestManipulator, err := createManifestManipulator(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	configMapData := map[string]string{
-		"REPOSITORIES": concatenateArrayOfStrings(fullPathOfSourceRepositories),
-	}
-	configMap := createConfigMapForEnvvar(labels, configMapData)
-
-	//schedule := strings.SplitN(trigger, " ", 2)[1]
-	cronJob := create(labels, configMap.Name, direction, remoteRegistry, finalArgs, trigger)
-
-	err = manifestManipulator.WriteResource(ctx, configMap)
-	if err != nil {
-		return nil, err
-	}
-
-	err = manifestManipulator.WriteResource(ctx, cronJob.resource)
-
-	return nil, err
+	return projectWithRepositories.GetRepositories(ctx)
 }
 
 func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project globalregistry.Project, sourceRegistryName string) ([]CronJob, error) {
@@ -169,10 +151,10 @@ func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project
 			}
 
 			cjObject := CronJob{
-				// remoteRegistry: label -> registry_name -> kube API.GetRegistry(registry_name) -> api.Registry -> config/registry.New(api.Registry) -> globalregistry.Registry
 				remoteRegistry: remoteRegistryByName,
 				resource:       &cj,
-				dir:            cj.Labels["direction"],
+				//dir:            cj.Labels["direction"],
+				dir: "Push",
 				replTrigger: &replicationTrigger{
 					triggerType:     v1alpha1.CronReplicationTriggerType,
 					triggerSchedule: cj.Spec.Schedule,
@@ -183,6 +165,40 @@ func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project
 	}
 
 	return results, nil
+}
+
+func (cjf *CronJobFactory) ApplyConfigMapForRepositories(ctx context.Context, repositories []string, labels map[string]string) (*v1.ConfigMap, error) {
+	projectOfSourceRegistry := &ProjectOfRegistry{
+		Registry: cjf.source,
+		Project:  cjf.project,
+	}
+
+	projectFullPathOfSource, err := projectOfSourceRegistry.GenerateProjectRepoName()
+	if err != nil {
+		return nil, err
+	}
+
+	var fullPathOfSourceRepositories []string
+
+	for _, repoName := range repositories {
+		repoFullPathOfSource := fmt.Sprintf("%s/%s", projectFullPathOfSource, repoName)
+		fullPathOfSourceRepositories = append(fullPathOfSourceRepositories, repoFullPathOfSource)
+	}
+
+	configMapData := map[string]string{
+		"REPOSITORIES": concatenateArrayOfStrings(fullPathOfSourceRepositories),
+	}
+
+	configMap := createConfigMapForEnvvar(labels, configMapData)
+
+	manifestManipulator, err := createManifestManipulator(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = manifestManipulator.WriteResource(ctx, configMap)
+
+	return configMap, err
 }
 
 func getRegistryByName(ctx context.Context, name string) (globalregistry.Registry, error) {
@@ -225,4 +241,12 @@ func createManifestManipulator(ctx context.Context) (ManifestManipulator, error)
 		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
 	}
 	return manifestManipulator, nil
+}
+
+func writeCronJob(ctx context.Context, cronJob *CronJob) error {
+	manifestManipulator, err := createManifestManipulator(ctx)
+	if err != nil {
+		return err
+	}
+	return manifestManipulator.WriteResource(ctx, cronJob.resource)
 }
