@@ -120,6 +120,10 @@ spec:
                     description: HasProjectStorageReport shows whether the registry
                       understands the concept of project level storage reporting.
                     type: boolean
+                  hasProjectWithRepositories:
+                    description: HasProjectReplicationRules shows whether the registry
+                      understands the concept of project level replication rules.
+                    type: boolean
                 required:
                 - canCreateProject
                 - canDeleteProject
@@ -132,6 +136,7 @@ spec:
                 - hasProjectReplicationRules
                 - hasProjectScanners
                 - hasProjectStorageReport
+                - hasProjectWithRepositories
                 type: object
               projects:
                 items:
@@ -198,7 +203,7 @@ spec:
                             type: object
                           type:
                             description: Type shows where the replication logic is
-                              implemented.
+                              implemented. TODO:rename
                             type: string
                         required:
                         - direction

@@ -64,6 +64,9 @@ func getRegistryCapabilities(ctx context.Context, reg globalregistry.Registry) (
 	if _, ok := dummyProject.(globalregistry.ProjectWithReplication); ok {
 		registryCapabilities.HasProjectReplicationRules = true
 	}
+	if _, ok := dummyProject.(globalregistry.ProjectWithRepositories); ok {
+		registryCapabilities.HasProjectWithRepositories = true
+	}
 	if _, ok := dummyProject.(globalregistry.ReplicationRuleManipulatorProject); ok {
 		registryCapabilities.CanManipulateProjectReplicationRules = true
 	}
@@ -121,6 +124,7 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 			if err != nil {
 				return nil, err
 			}
+			projectWithRepositories, realProject := project.(globalregistry.ProjectWithRepositories)
 			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, len(replicationRules))
 			for n, rule := range replicationRules {
 				projectStatuses[i].ReplicationRules[n].RemoteRegistryName = rule.RemoteRegistry().GetName()
@@ -130,12 +134,17 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 				}
 				projectStatuses[i].ReplicationRules[n].Direction = rule.Direction()
 				projectStatuses[i].ReplicationRules[n].Type = string(rule.Type())
+
+				if realProject {
+					err := projectWithRepositories.UpdateRepositoryListConfigMaps(ctx, rule)
+					if err != nil {
+						return nil, err
+					}
+				}
 			}
 		} else {
 			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, 0)
 		}
-		// TODO: extend replication rule list with replication rules from API object store (i.e. Kubernetes)
-		// cronjob.GetReplicationRulesOfProject(project) => []globalregistry.ReplicationRule
 
 		projectWithStorage, ok := project.(globalregistry.ProjectWithStorage)
 		if ok {

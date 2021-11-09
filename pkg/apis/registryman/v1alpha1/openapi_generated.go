@@ -569,6 +569,14 @@ func schema_pkg_apis_registryman_v1alpha1_RegistryCapabilities(ref common.Refere
 							Format:      "",
 						},
 					},
+					"hasProjectWithRepositories": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HasProjectReplicationRules shows whether the registry understands the concept of project level replication rules.",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"hasProjectStorageReport": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HasProjectStorageReport shows whether the registry understands the concept of project level storage reporting.",
@@ -578,7 +586,7 @@ func schema_pkg_apis_registryman_v1alpha1_RegistryCapabilities(ref common.Refere
 						},
 					},
 				},
-				Required: []string{"canCreateProject", "canDeleteProject", "canPullReplicate", "canPushReplicate", "canManipulateProjectMembers", "canManipulateScanners", "canManipulateReplicationRules", "hasProjectMembers", "hasProjectScanners", "hasProjectReplicationRules", "hasProjectStorageReport"},
+				Required: []string{"canCreateProject", "canDeleteProject", "canPullReplicate", "canPushReplicate", "canManipulateProjectMembers", "canManipulateScanners", "canManipulateReplicationRules", "hasProjectMembers", "hasProjectScanners", "hasProjectReplicationRules", "hasProjectWithRepositories", "hasProjectStorageReport"},
 			},
 		},
 	}

@@ -132,6 +132,10 @@ type RegistryCapabilities struct {
 	// concept of project level replication rules.
 	HasProjectReplicationRules bool `json:"hasProjectReplicationRules"`
 
+	// HasProjectReplicationRules shows whether the registry understands the
+	// concept of project level replication rules.
+	HasProjectWithRepositories bool `json:"hasProjectWithRepositories"`
+
 	// HasProjectStorageReport shows whether the registry understands the concept
 	// of project level storage reporting.
 	HasProjectStorageReport bool `json:"hasProjectStorageReport"`
@@ -191,6 +195,7 @@ type ReplicationRuleStatus struct {
 	Direction string `json:"direction"`
 
 	// Type shows where the replication logic is implemented.
+	// TODO:rename
 	Type string `json:"type"`
 }
 
@@ -549,7 +554,7 @@ func (rtt *ReplicationTriggerType) UnmarshalText(text []byte) error {
 		*rtt = ManualReplicationTriggerType
 	case "event_based":
 		*rtt = EventBasedReplicationTriggerType
-	case "scheduled", "cron":
+	case "cron":
 		*rtt = CronReplicationTriggerType
 	default:
 		*rtt = UndefinedRepliationTriggerType
