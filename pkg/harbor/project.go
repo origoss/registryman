@@ -31,7 +31,7 @@ import (
 type project struct {
 	id       int
 	registry *registry
-	Name     string
+	name     string
 }
 
 // interface guard
@@ -47,7 +47,7 @@ var _ globalregistry.DestructibleProject = &project{}
 var _ globalregistry.ReplicationRuleManipulatorProject = &project{}
 
 func (p *project) GetName() string {
-	return p.Name
+	return p.name
 }
 
 // Delete removes the project from registry
@@ -61,7 +61,7 @@ func (p *project) Delete(ctx context.Context) error {
 		switch opt := p.registry.GetOptions().(type) {
 		case globalregistry.CanForceDelete:
 			if f := opt.ForceDeleteProjects(); !f {
-				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.Name, globalregistry.ErrRecoverableError)
+				return fmt.Errorf("%s: repositories are present, please delete them before deleting the project, %w", p.name, globalregistry.ErrRecoverableError)
 			}
 			for _, repo := range repos {
 				p.registry.logger.V(1).Info("deleting repository",
@@ -136,7 +136,7 @@ func (p *project) AssignMember(ctx context.Context, member globalregistry.Projec
 		groupMember, ok := member.(globalregistry.LdapMember)
 		if !ok {
 			return nil, fmt.Errorf("error assigning group %s to project %s: group is not LDAP group",
-				member.GetName(), p.Name)
+				member.GetName(), p.name)
 		}
 		role, err := roleFromString(member.GetRole())
 		if err != nil {
@@ -279,7 +279,7 @@ func (p *project) deleteRepository(ctx context.Context, r string) error {
 
 func (p *project) GetReplicationRules(ctx context.Context, trigger globalregistry.ReplicationTrigger, direction string) ([]globalregistry.ReplicationRule, error) {
 	p.registry.logger.V(1).Info("Project.GetReplicationRules invoked",
-		"projectName", p.Name,
+		"projectName", p.name,
 	)
 	replRules, err := p.registry.listReplicationRules(ctx)
 	if err != nil {
@@ -294,7 +294,7 @@ func (p *project) GetReplicationRules(ctx context.Context, trigger globalregistr
 			"name", replRule.GetName(),
 			"projectName", replRule.GetProjectName(),
 		)
-		if replRule.GetProjectName() == p.Name {
+		if replRule.GetProjectName() == p.name {
 			p.registry.logger.V(1).Info("project name matches, replication rule stored")
 			if trigger != nil &&
 				trigger.TriggerType() != replRule.Trigger().TriggerType() &&
@@ -360,6 +360,27 @@ func (p *project) UnassignScanner(ctx context.Context, targetScanner globalregis
 	return p.AssignScanner(ctx, defaultScanner)
 }
 
+func (p *project) UpdateRepositoryListConfigMaps(ctx context.Context, rule globalregistry.ReplicationRule) error {
+	cjf, err := config.NewCjFactory(p.registry, p)
+	if err != nil {
+		return err
+	}
+
+	labels := map[string]string{
+		"generator": "registryman-skopeo",
+		"project":   p.GetName(),
+		//"direction":       direction,
+		"remote-registry": rule.RemoteRegistry().GetName()}
+
+	repositories, err := p.GetRepositories(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = cjf.ApplyConfigMapForRepositories(ctx, repositories, labels)
+	return err
+}
+
 type projectStatusQuotaUsed struct {
 	Storage int `json:"storage"`
 }
@@ -374,7 +395,7 @@ type projectStatusResponse struct {
 // GetUsedStorage implements the globalregistry.Project interface.
 func (p *project) GetUsedStorage(ctx context.Context) (int, error) {
 	p.registry.logger.V(1).Info("getting storage usage of a project",
-		"projectName", p.Name,
+		"projectName", p.name,
 	)
 	url := *p.registry.parsedUrl
 	url.Path = fmt.Sprintf("/api/v2.0/projects/%d/summary", p.id)

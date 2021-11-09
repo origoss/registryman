@@ -81,7 +81,7 @@ func (r *registry) GetProjectByName(ctx context.Context, name string) (globalreg
 		return &project{
 			id:       -1,
 			registry: r,
-			Name:     "",
+			name:     "",
 		}, nil
 	}
 	projects, err := r.ListProjects(ctx)
@@ -132,7 +132,7 @@ func (r *registry) ListProjects(ctx context.Context) ([]globalregistry.Project, 
 		pStatus[i] = &project{
 			id:       pData.ProjectID,
 			registry: r,
-			Name:     pData.Name,
+			name:     pData.Name,
 		}
 	}
 	return pStatus, err
@@ -141,14 +141,14 @@ func (r *registry) ListProjects(ctx context.Context) ([]globalregistry.Project, 
 func (r *registry) CreateProject(ctx context.Context, name string) (globalregistry.Project, error) {
 	proj := &project{
 		registry: r,
-		Name:     name,
+		name:     name,
 	}
 
 	url := *r.parsedUrl
 	url.Path = path
 	reqBodyBuf := bytes.NewBuffer(nil)
 	err := json.NewEncoder(reqBodyBuf).Encode(&projectCreateReqBody{
-		Name: proj.Name,
+		Name: proj.name,
 	})
 	if err != nil {
 		return nil, err
@@ -232,7 +232,7 @@ type projectRepositoryRespBody struct {
 
 func (r *registry) listProjectRepositories(ctx context.Context, proj *project) ([]string, error) {
 	url := *r.parsedUrl
-	url.Path = fmt.Sprintf("%s/%s/repositories", path, proj.Name)
+	url.Path = fmt.Sprintf("%s/%s/repositories", path, proj.name)
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (r *registry) listProjectRepositories(ctx context.Context, proj *project) (
 			repositoryNames,
 			strings.TrimPrefix(
 				rep.Name,
-				proj.Name+"/",
+				proj.name+"/",
 			),
 		)
 	}
@@ -270,7 +270,7 @@ func (r *registry) listProjectRepositories(ctx context.Context, proj *project) (
 
 func (r *registry) deleteProjectRepository(ctx context.Context, proj *project, repo string) error {
 	url := *r.parsedUrl
-	url.Path = fmt.Sprintf("%s/%s/repositories/%s", path, proj.Name, repo)
+	url.Path = fmt.Sprintf("%s/%s/repositories/%s", path, proj.GetName(), repo)
 	req, err := http.NewRequest(http.MethodDelete, url.String(), nil)
 	if err != nil {
 		return err
