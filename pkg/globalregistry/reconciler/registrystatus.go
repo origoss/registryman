@@ -133,7 +133,7 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 					Schedule: rule.Trigger().TriggerSchedule(),
 				}
 				projectStatuses[i].ReplicationRules[n].Direction = rule.Direction()
-				projectStatuses[i].ReplicationRules[n].Type = string(rule.Type())
+				projectStatuses[i].ReplicationRules[n].Provider = string(rule.Type())
 
 				if realProject {
 					err := projectWithRepositories.UpdateRepositoryListConfigMaps(ctx, rule)

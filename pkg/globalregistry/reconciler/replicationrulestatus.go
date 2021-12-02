@@ -39,7 +39,7 @@ func (ra *rRuleAddAction) String() string {
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
-		ra.Type,
+		ra.Provider,
 	)
 }
 
@@ -53,7 +53,7 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
 
-	switch ra.Type {
+	switch ra.Provider {
 	case "registry":
 		replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
 		if !ok {
@@ -92,7 +92,7 @@ func (ra *rRuleRemoveAction) String() string {
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
-		ra.Type,
+		ra.Provider,
 	)
 }
 

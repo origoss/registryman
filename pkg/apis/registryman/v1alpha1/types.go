@@ -194,9 +194,8 @@ type ReplicationRuleStatus struct {
 	// Direction shows whether the replication is of type pull or push.
 	Direction string `json:"direction"`
 
-	// Type shows where the replication logic is implemented.
-	// TODO:rename
-	Type string `json:"type"`
+	// Provider shows where the replication logic is implemented.
+	Provider string `json:"type"`
 }
 
 // ScannerStatus specifies the status of a project's external vulnerability scanner.
@@ -548,16 +547,18 @@ func (rtt ReplicationTriggerType) MarshalText() ([]byte, error) {
 	return []byte(rtt.String()), nil
 }
 
+// TODO: error is never thrown
 func (rtt *ReplicationTriggerType) UnmarshalText(text []byte) error {
 	switch string(text) {
 	case "manual":
 		*rtt = ManualReplicationTriggerType
 	case "event_based":
 		*rtt = EventBasedReplicationTriggerType
-	case "cron":
+	case "cron", "scheduled":
 		*rtt = CronReplicationTriggerType
 	default:
 		*rtt = UndefinedRepliationTriggerType
+		return fmt.Errorf("UndefinedRepliationTriggerType")
 	}
 	return nil
 }
