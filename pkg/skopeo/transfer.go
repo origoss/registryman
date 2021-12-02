@@ -104,11 +104,7 @@ func (t *transfer) Import(source, destination string, logger logr.Logger) *exec.
 	)
 }
 
-func (t *transfer) Sync(forCronJob bool, source, destination, destUserName, destPassword string, logger logr.Logger) *exec.Cmd {
-	if logger != nil {
-		logger.Info("syncing images started")
-	}
-
+func (t *transfer) Sync(forCronJob bool, source, destination, destUserName, destPassword string) *exec.Cmd {
 	syncSource := source
 	executablePrefix := "./"
 	if forCronJob {

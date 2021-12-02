@@ -74,7 +74,7 @@ func (cjf *CronJobFactory) AssignReplicationRule(ctx context.Context, remoteRegi
 		return nil, err
 	}
 
-	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, remoteRegistry.GetUsername(), remoteRegistry.GetPassword(), nil)
+	skopeoCommand := transfer.Sync(true, "", projectFullPathOfDestination, remoteRegistry.GetUsername(), remoteRegistry.GetPassword())
 	fmt.Println(skopeoCommand)
 
 	// TODO: go text pkg
