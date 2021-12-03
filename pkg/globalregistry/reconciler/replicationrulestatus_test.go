@@ -32,6 +32,7 @@ var (
 			Schedule: "",
 		},
 		Direction: "Push",
+		Provider:  "registry",
 	}
 	rrule2 = api.ReplicationRuleStatus{
 		RemoteRegistryName: "reg2",
@@ -40,6 +41,7 @@ var (
 			Schedule: "",
 		},
 		Direction: "Push",
+		Provider:  "registry",
 	}
 	rrule1Trig = api.ReplicationRuleStatus{
 		RemoteRegistryName: "reg1",
@@ -48,6 +50,7 @@ var (
 			Schedule: "",
 		},
 		Direction: "Push",
+		Provider:  "registry",
 	}
 	rrule1Pull = api.ReplicationRuleStatus{
 		RemoteRegistryName: "reg1",
@@ -56,6 +59,7 @@ var (
 			Schedule: "",
 		},
 		Direction: "Pull",
+		Provider:  "registry",
 	}
 )
 
@@ -112,7 +116,7 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(1))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"adding replication rule for proj: reg1 [Push] on event_based",
+			"adding replication rule for proj: reg1 [Push] on event_based with registry",
 		}))
 
 		act = []api.ReplicationRuleStatus{
@@ -128,7 +132,7 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(1))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"adding replication rule for proj: reg1 [Push] on event_based",
+			"adding replication rule for proj: reg1 [Push] on event_based with registry",
 		}))
 	})
 
@@ -143,7 +147,7 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(1))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"removing replication rule for proj: reg1 [Push] on event_based",
+			"removing replication rule for proj: reg1 [Push] on event_based with registry",
 		}))
 		act = []api.ReplicationRuleStatus{
 			rrule1,
@@ -158,7 +162,7 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(1))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"removing replication rule for proj: reg1 [Push] on event_based",
+			"removing replication rule for proj: reg1 [Push] on event_based with registry",
 		}))
 	})
 
@@ -175,8 +179,8 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(2))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"removing replication rule for proj: reg1 [Push] on event_based",
-			"adding replication rule for proj: reg2 [Push] on event_based",
+			"removing replication rule for proj: reg1 [Push] on event_based with registry",
+			"adding replication rule for proj: reg2 [Push] on event_based with registry",
 		}))
 		act = []api.ReplicationRuleStatus{
 			rrule1,
@@ -190,8 +194,8 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(2))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"removing replication rule for proj: reg1 [Push] on event_based",
-			"adding replication rule for proj: reg1 [Push] on manual",
+			"removing replication rule for proj: reg1 [Push] on event_based with registry",
+			"adding replication rule for proj: reg1 [Push] on manual with registry",
 		}))
 		act = []api.ReplicationRuleStatus{
 			rrule1,
@@ -205,8 +209,8 @@ var _ = Describe("Memberstatus", func() {
 		Expect(actions).ToNot(BeNil())
 		Expect(len(actions)).To(Equal(2))
 		Expect(actionsToStrings(actions)).To(Equal([]string{
-			"removing replication rule for proj: reg1 [Push] on event_based",
-			"adding replication rule for proj: reg1 [Pull] on event_based",
+			"removing replication rule for proj: reg1 [Push] on event_based with registry",
+			"adding replication rule for proj: reg1 [Pull] on event_based with registry",
 		}))
 	})
 })

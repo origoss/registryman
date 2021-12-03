@@ -59,8 +59,7 @@ type ResourceManipulatorContextKey string
 //   }
 var ResourceManipulatorKey = ResourceManipulatorContextKey("resource-manipulator")
 
-// TODO: comment, rename to ResourceManipulator
-type ManifestManipulator interface {
+type ResourceManipulator interface {
 	// WriteResource serializes the object specified by the obj parameter.
 	WriteResource(ctx context.Context, obj runtime.Object) error
 
@@ -71,7 +70,7 @@ type ManifestManipulator interface {
 // ApiObjectStore interface is an abstract interface that hides the difference
 // between the local file and Kubernetes resource based config management.
 type ApiObjectStore interface {
-	ManifestManipulator
+	ResourceManipulator
 
 	// GetRegistries returns the parsed registries as API objects.
 	GetRegistries(context.Context) []*api.Registry

@@ -231,12 +231,12 @@ func concatenateArrayOfStrings(arg []string) string {
 	return result
 }
 
-func createManifestManipulator(ctx context.Context) (ManifestManipulator, error) {
+func createManifestManipulator(ctx context.Context) (ResourceManipulator, error) {
 	manipulatorCtx := ctx.Value(ResourceManipulatorKey)
 	if manipulatorCtx == nil {
 		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
 	}
-	manifestManipulator, ok := manipulatorCtx.(ManifestManipulator)
+	manifestManipulator, ok := manipulatorCtx.(ResourceManipulator)
 	if !ok {
 		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
 	}

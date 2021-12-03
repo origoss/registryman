@@ -202,8 +202,8 @@ spec:
                             - type
                             type: object
                           type:
-                            description: Type shows where the replication logic is
-                              implemented. TODO:rename
+                            description: Provider shows where the replication logic
+                              is implemented.
                             type: string
                         required:
                         - direction

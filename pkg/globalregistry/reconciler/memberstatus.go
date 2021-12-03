@@ -99,7 +99,7 @@ func (pmc *persistMemberCredentials) Perform(ctx context.Context) error {
 	if sideEffectManipulatorCtx == nil {
 		return fmt.Errorf("context shall contain SideEffectManifestManipulator")
 	}
-	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ManifestManipulator)
+	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ResourceManipulator)
 	if !ok {
 		return fmt.Errorf("SideEffectManifestManipulator is not a proper manifestManipulator")
 	}
@@ -179,7 +179,7 @@ func (rmc *removeMemberCredentials) Perform(ctx context.Context) error {
 	if sideEffectManipulatorCtx == nil {
 		return fmt.Errorf("context shall contain SideEffectManifestManipulator")
 	}
-	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ManifestManipulator)
+	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ResourceManipulator)
 	if !ok {
 		return fmt.Errorf("SideEffectManifestManipulator is not a proper manifestManipulator")
 	}
