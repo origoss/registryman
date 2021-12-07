@@ -1,3 +1,19 @@
+/*
+   Copyright 2021 The Kubermatic Kubernetes Platform contributors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package config
 
 import (
@@ -102,10 +118,10 @@ do
 		return nil, err
 	}
 
-	cronJob := create(labels, configMap.Name, direction, remoteRegistry, finalArgs, trigger)
-	err = writeCronJob(ctx, cronJob)
+	cronJobInstance := create(labels, configMap.Name, direction, remoteRegistry, finalArgs, trigger)
+	err = writeCronJob(ctx, cronJobInstance)
 
-	return cronJob, err
+	return cronJobInstance, err
 }
 
 func (cjf *CronJobFactory) getRepositories(ctx context.Context, remoteRegistry globalregistry.Registry) ([]string, error) {
@@ -127,7 +143,7 @@ func (cjf *CronJobFactory) getRepositories(ctx context.Context, remoteRegistry g
 	return projectWithRepositories.GetRepositories(ctx)
 }
 
-func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project globalregistry.Project, sourceRegistryName string) ([]CronJob, error) {
+func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project globalregistry.Project, sourceRegistryName string) ([]cronJob, error) {
 	namespace, _, err := kubeConfig.Namespace()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Kubernetes namespace: %w", err)
@@ -138,7 +154,7 @@ func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project
 		return nil, err
 	}
 
-	var results []CronJob
+	var results []cronJob
 	for _, cj := range cronJobList.Items {
 		if cj.Labels["project"] == project.GetName() && cj.Labels["remote-registry"] != sourceRegistryName {
 			remoteRegistryByName, err := getRegistryByName(ctx, cj.Labels["remote-registry"])
@@ -150,7 +166,7 @@ func (cjf *CronJobFactory) GetAllCronJobsForProject(ctx context.Context, project
 				APIVersion: "v1beta1",
 			}
 
-			cjObject := CronJob{
+			cjObject := cronJob{
 				remoteRegistry: remoteRegistryByName,
 				resource:       &cj,
 				//dir:            cj.Labels["direction"],
@@ -243,10 +259,10 @@ func createManifestManipulator(ctx context.Context) (ResourceManipulator, error)
 	return manifestManipulator, nil
 }
 
-func writeCronJob(ctx context.Context, cronJob *CronJob) error {
+func writeCronJob(ctx context.Context, cronJobConfig *cronJob) error {
 	manifestManipulator, err := createManifestManipulator(ctx)
 	if err != nil {
 		return err
 	}
-	return manifestManipulator.WriteResource(ctx, cronJob.resource)
+	return manifestManipulator.WriteResource(ctx, cronJobConfig.resource)
 }

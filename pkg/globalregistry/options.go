@@ -1,5 +1,7 @@
 package globalregistry
 
+// ReplicationType is a type needed to specify wether the
+// replication gets handled by Skopeo or at registry level.
 type ReplicationType string
 
 const (
@@ -13,6 +15,8 @@ type CanForceDelete interface {
 	ForceDeleteProjects() bool
 }
 
+// CanReplicate interface describes an option that is needed to
+// be able to replicate a project and its contents.
 type CanReplicate interface {
 	SupportsProjectReplication() ReplicationType
 }

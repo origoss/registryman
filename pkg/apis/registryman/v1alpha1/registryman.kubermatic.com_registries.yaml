@@ -121,8 +121,8 @@ spec:
                       understands the concept of project level storage reporting.
                     type: boolean
                   hasProjectWithRepositories:
-                    description: HasProjectReplicationRules shows whether the registry
-                      understands the concept of project level replication rules.
+                    description: HasProjectWithRepositories shows whether the registry
+                      can contain repositories within projects.
                     type: boolean
                 required:
                 - canCreateProject
@@ -185,6 +185,10 @@ spec:
                             description: Direction shows whether the replication is
                               of type pull or push.
                             type: string
+                          provider:
+                            description: Provider shows where the replication logic
+                              is implemented.
+                            type: string
                           remoteRegistryName:
                             description: RemoteRegistryName indicates the name of
                               the remote registry which the current registry shall
@@ -201,15 +205,11 @@ spec:
                             required:
                             - type
                             type: object
-                          type:
-                            description: Provider shows where the replication logic
-                              is implemented.
-                            type: string
                         required:
                         - direction
+                        - provider
                         - remoteRegistryName
                         - trigger
-                        - type
                         type: object
                       type: array
                       x-kubernetes-list-type: atomic

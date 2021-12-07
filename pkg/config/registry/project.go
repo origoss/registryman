@@ -58,11 +58,7 @@ func (proj *project) GetReplicationRules(ctx context.Context, trigger globalregi
 	case api.GlobalProjectType:
 		for _, r := range proj.registry.apiProvider.GetRegistries(ctx) {
 			remoteReg := New(r, proj.registry.apiProvider)
-			// if registryWithReplicate, ok := remoteReg.GetOptions().(globalregistry.CanReplicate); ok {
-			// 	if !filter(registryWithReplicate.SupportsProjectReplication()) {
-			// 		continue Loop
-			// 	}
-			// }
+
 			if proj.registry.GetName() != r.GetName() {
 				calcRepl := calculateReplicationRule(
 					proj.registry.registryCapabilities(),

@@ -571,7 +571,7 @@ func schema_pkg_apis_registryman_v1alpha1_RegistryCapabilities(ref common.Refere
 					},
 					"hasProjectWithRepositories": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HasProjectReplicationRules shows whether the registry understands the concept of project level replication rules.",
+							Description: "HasProjectWithRepositories shows whether the registry can contain repositories within projects.",
 							Default:     false,
 							Type:        []string{"boolean"},
 							Format:      "",
@@ -768,7 +768,7 @@ func schema_pkg_apis_registryman_v1alpha1_ReplicationRuleStatus(ref common.Refer
 							Format:      "",
 						},
 					},
-					"type": {
+					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider shows where the replication logic is implemented.",
 							Default:     "",
@@ -777,7 +777,7 @@ func schema_pkg_apis_registryman_v1alpha1_ReplicationRuleStatus(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"remoteRegistryName", "trigger", "direction", "type"},
+				Required: []string{"remoteRegistryName", "trigger", "direction", "provider"},
 			},
 		},
 		Dependencies: []string{

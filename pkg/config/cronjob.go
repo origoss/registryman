@@ -1,3 +1,19 @@
+/*
+   Copyright 2021 The Kubermatic Kubernetes Platform contributors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package config
 
 import (
@@ -25,24 +41,24 @@ func (rt replicationTrigger) TriggerSchedule() string {
 	return rt.triggerSchedule
 }
 
-type CronJob struct {
+type cronJob struct {
 	remoteRegistry globalregistry.Registry
 	dir            string
 	resource       *v1beta1.CronJob
 	replTrigger    *replicationTrigger
 }
 
-var _ globalregistry.ReplicationRule = &CronJob{}
-var _ globalregistry.DestructibleReplicationRule = &CronJob{}
+var _ globalregistry.ReplicationRule = &cronJob{}
+var _ globalregistry.DestructibleReplicationRule = &cronJob{}
 var _ globalregistry.ReplicationTrigger = replicationTrigger{}
 
-func create(labels map[string]string, configMapName, direction string, remoteRegistry globalregistry.Registry, args []string, trigger globalregistry.ReplicationTrigger) *CronJob {
+func create(labels map[string]string, configMapName, direction string, remoteRegistry globalregistry.Registry, args []string, trigger globalregistry.ReplicationTrigger) *cronJob {
 	var backOffLimit int32 = 1
 	cronJobUniqueName := fmt.Sprintf("%s-job", labels["project"])
 	startingDeadlineSecPtr := new(int64)
 	*startingDeadlineSecPtr = 200
 
-	cronJob := &CronJob{
+	cronJobConfig := &cronJob{
 		remoteRegistry: remoteRegistry,
 		dir:            direction,
 		resource: &v1beta1.CronJob{
@@ -90,7 +106,7 @@ func create(labels map[string]string, configMapName, direction string, remoteReg
 		},
 	}
 
-	return cronJob
+	return cronJobConfig
 	// TODO: Go converter package for dynamic cronjob version generation
 }
 
@@ -110,36 +126,35 @@ func createConfigMapForEnvvar(labels, data map[string]string) *v1.ConfigMap {
 	return configMap
 }
 
-func (cj *CronJob) Resource() *v1beta1.CronJob {
+func (cj *cronJob) Resource() *v1beta1.CronJob {
 	return cj.resource
 }
 
-func (cj *CronJob) Direction() string {
+func (cj *cronJob) Direction() string {
 	return cj.dir
 }
 
-func (cj *CronJob) GetName() string {
+func (cj *cronJob) GetName() string {
 	return cj.resource.Name
 }
 
-func (cj *CronJob) GetProjectName() string {
+func (cj *cronJob) GetProjectName() string {
 	return cj.resource.Labels["project"]
 }
 
-func (cj *CronJob) RemoteRegistry() globalregistry.Registry {
+func (cj *cronJob) RemoteRegistry() globalregistry.Registry {
 	return cj.remoteRegistry
 }
 
-func (cj *CronJob) Trigger() globalregistry.ReplicationTrigger {
+func (cj *cronJob) Trigger() globalregistry.ReplicationTrigger {
 	return cj.replTrigger
-	//return fmt.Sprintf("%s %s", "cron", cj.resource.Spec.Schedule)
 }
 
-func (cj *CronJob) Type() globalregistry.ReplicationType {
+func (cj *cronJob) Type() globalregistry.ReplicationType {
 	return globalregistry.SkopeoReplication
 }
 
-func (cj *CronJob) Delete(ctx context.Context) error {
+func (cj *cronJob) Delete(ctx context.Context) error {
 	manifestManipulator, err := createManifestManipulator(ctx)
 	if err != nil {
 		return err

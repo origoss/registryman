@@ -124,15 +124,15 @@ func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
 			}
 			mergedOptions.forceDelete = b
 		}
-		// if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/replication"]; ok {
-		// 	if val != string(globalregistry.RegistryReplication) && val != string(globalregistry.SkopeoReplication) {
-		// 		reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/replication annotation, expected \"registry\" or \"skopeo\"",
-		// 			"registry", reg.apiRegistry.GetName(),
-		// 			"value", val)
-		// 		mergedOptions.replication = "registry"
-		// 	}
-		// 	mergedOptions.replication = globalregistry.ReplicationType(val)
-		// }
+		if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/replication"]; ok {
+			if val != string(globalregistry.RegistryReplication) && val != string(globalregistry.SkopeoReplication) {
+				reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/replication annotation, expected \"registry\" or \"skopeo\"",
+					"registry", reg.apiRegistry.GetName(),
+					"value", val)
+				mergedOptions.replication = "registry"
+			}
+			mergedOptions.replication = globalregistry.ReplicationType(val)
+		}
 
 	}
 	return mergedOptions
@@ -150,36 +150,3 @@ func (reg *Registry) registryCapabilities() registryCapabilities {
 		ReplicationCapabilities: globalregistry.GetReplicationCapability(reg.GetProvider()),
 	}
 }
-
-// type ReplicationRuleFilter func(globalregistry.ReplicationType) bool
-
-// func ReplicionRuleIsNotOfType(rRuleType globalregistry.ReplicationType) ReplicationRuleFilter {
-// 	return func(rt globalregistry.ReplicationType) bool {
-// 		return rt != rRuleType
-// 	}
-// }
-
-// func ReplicionRuleIsOfType(rRuleType globalregistry.ReplicationType) ReplicationRuleFilter {
-// 	return func(rt globalregistry.ReplicationType) bool {
-// 		return rt == rRuleType
-// 	}
-// }
-
-// func FilterReplicationRules(ctx context.Context, aop ApiObjectProvider, filter ReplicationRuleFilter) ([]globalregistry.ReplicationRule, error) {
-// 	projects := aop.GetProjects(ctx)
-// 	result := []globalregistry.ReplicationRule{}
-// 	for _, proj := range projects {
-// 		if proj.Spec.Type == api.GlobalProjectType {
-// 			p := &project{
-// 				Project:  proj,
-// 				registry: r,
-// 			}
-// 			rrules, err := p.filterReplicationRules(ctx, filter, "", "")
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			result = append(result, rrules...)
-// 		}
-// 	}
-// 	return result, nil
-// }

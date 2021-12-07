@@ -132,8 +132,8 @@ type RegistryCapabilities struct {
 	// concept of project level replication rules.
 	HasProjectReplicationRules bool `json:"hasProjectReplicationRules"`
 
-	// HasProjectReplicationRules shows whether the registry understands the
-	// concept of project level replication rules.
+	// HasProjectWithRepositories shows whether the registry can contain
+	// repositories within projects.
 	HasProjectWithRepositories bool `json:"hasProjectWithRepositories"`
 
 	// HasProjectStorageReport shows whether the registry understands the concept
@@ -195,7 +195,7 @@ type ReplicationRuleStatus struct {
 	Direction string `json:"direction"`
 
 	// Provider shows where the replication logic is implemented.
-	Provider string `json:"type"`
+	Provider string `json:"provider"`
 }
 
 // ScannerStatus specifies the status of a project's external vulnerability scanner.

@@ -31,11 +31,6 @@ import (
 
 var destinationPath string
 
-// TODO: reconciler pkg/ replicationrulestatus.go -> Perform (ruleadd and ruleremove)
-// Change AssignReplicationRule to CronJob
-// Or separate interfaces for CronJobs
-
-// exportCmd represents the export command
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "It creates a backup for a given project in tar format",
@@ -87,9 +82,6 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 
 			skopeoCommand.Stderr = os.Stderr
 			skopeoCommand.Stdout = os.Stdout
-
-			// TODO: remove this in prod!
-			logger.Info(skopeoCommand.String())
 
 			if err := skopeoCommand.Run(); err != nil {
 				return err
