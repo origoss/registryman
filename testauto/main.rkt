@@ -103,8 +103,9 @@
     (for ([path paths])
       (displayln (format "\n\n ######### ~a #########\n\n" path))
       (with-handlers ([exn:fail?
-                       (λ (_)
+                       (λ (e)
                          (displayln "\n\n ######### EXECUTION FAILED ########\n\n")
+                         (displayln e)
                          (let ([executed-tests (append (takef paths
                                                               (λ (p) (not (equal? p path))))
                                                        (list path))])

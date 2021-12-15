@@ -7,8 +7,8 @@
   registryman-git-rev ? "",
   registryman-git-ref ? "",
   registryman-git-url ? "git@github.com:origoss/registryman.git",
-  local-vendor-sha256 ? "14bbh23prjgghb1rr6jwh2d9wdx1b4jygfnyrq8pr0hd3538qsfb",
-  git-vendor-sha256 ? "0gcxhzi24ali7kn9433igmzkw36yf7svvgnvv2jc7xsfhg165p63",
+  local-vendor-sha256 ? "1g3v2xqbvs26gzlhbh7jqmj5hnjncw5rf4w8hg9ap6jsl0v4575c",
+  git-vendor-sha256 ? "1g3v2xqbvs26gzlhbh7jqmj5hnjncw5rf4w8hg9ap6jsl0v4575c",
   registryman-from ? "local",
 }:
 
