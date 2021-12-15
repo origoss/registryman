@@ -50,7 +50,7 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		project, err := config.GetProjectByName(ctx, aos, projectName)
 		if err != nil {

@@ -16,7 +16,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
 	"github.com/spf13/cobra"
@@ -36,6 +38,8 @@ to quickly create a Cobra application.`,
 		fmt.Println("job called")
 		kubeConfig := args[0]
 
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
 		jobParams := &skopeo.JobParams{
 			Command: &skopeo.Command{
 				CmdType:     "export",
@@ -45,7 +49,7 @@ to quickly create a Cobra application.`,
 			KubeConfig: kubeConfig,
 		}
 
-		return skopeo.CreateJob(jobParams)
+		return skopeo.CreateJob(ctx, jobParams)
 	},
 }
 

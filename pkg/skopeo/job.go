@@ -42,7 +42,7 @@ type JobParams struct {
 }
 
 // Customizable cron-job
-func CreateJob(cmdParams *JobParams) error {
+func CreateJob(ctx context.Context, cmdParams *JobParams) error {
 	jobName := fmt.Sprintf("%s-%s", cmdParams.CmdType, "job")
 	// skopeo image
 	containerImage := "ubuntu:latest"
@@ -54,7 +54,7 @@ func CreateJob(cmdParams *JobParams) error {
 		return err
 	}
 
-	err = launchK8sJob(clientSet, jobName, containerImage, &entryCommand)
+	err = launchK8sJob(ctx, clientSet, jobName, containerImage, &entryCommand)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func connectToK8s(customPath string) (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string, cmd *[]string) error {
+func launchK8sJob(ctx context.Context, clientset *kubernetes.Clientset, jobName string, image string, cmd *[]string) error {
 	//jobs := clientset.BatchV1().Jobs("default")
 	jobs := clientset.BatchV1().CronJobs("default")
 	var backOffLimit int32 = 0
@@ -120,7 +120,7 @@ func launchK8sJob(clientset *kubernetes.Clientset, jobName string, image string,
 		},
 	}
 
-	_, err := jobs.Create(context.TODO(), cronJobSpec, metav1.CreateOptions{})
+	_, err := jobs.Create(ctx, cronJobSpec, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create K8s cron-job")
 	}

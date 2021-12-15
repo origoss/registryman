@@ -48,7 +48,7 @@ the URL of the registry, where the repository will be pushed.
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		project, err := config.GetProjectByName(ctx, aos, projectName)
 		if err != nil {
@@ -70,9 +70,6 @@ the URL of the registry, where the repository will be pushed.
 		skopeoCommand := transfer.Import(sourceDirectoryPath, projectDestinationFullPath, logger)
 		skopeoCommand.Stderr = os.Stderr
 		skopeoCommand.Stdout = os.Stdout
-
-		// TODO: remove this in prod!
-		logger.Info(skopeoCommand.String())
 
 		if err := skopeoCommand.Run(); err != nil {
 			return err
