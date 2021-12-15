@@ -104,8 +104,6 @@ func (o *registryOptions) SupportsProjectReplication() globalregistry.Replicatio
 //
 // Supported annotations:
 // - registryman.kubermatic.com/forceDelete: <bool_as_string>
-// - registryman.kubermatic.com/replication: <string>
-
 func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
 	mergedOptions := &registryOptions{}
 	cliForceDelete, ok := reg.apiProvider.GetGlobalRegistryOptions().(globalregistry.CanForceDelete)
@@ -124,16 +122,6 @@ func (reg *Registry) GetOptions() globalregistry.RegistryOptions {
 			}
 			mergedOptions.forceDelete = b
 		}
-		if val, ok := reg.apiRegistry.Annotations["registryman.kubermatic.com/replication"]; ok {
-			if val != string(globalregistry.RegistryReplication) && val != string(globalregistry.SkopeoReplication) {
-				reg.apiProvider.GetLogger().V(-1).Info("invalid value for registryman.kubermatic.com/replication annotation, expected \"registry\" or \"skopeo\"",
-					"registry", reg.apiRegistry.GetName(),
-					"value", val)
-				mergedOptions.replication = "registry"
-			}
-			mergedOptions.replication = globalregistry.ReplicationType(val)
-		}
-
 	}
 	return mergedOptions
 }
