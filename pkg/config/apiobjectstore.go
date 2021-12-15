@@ -81,6 +81,10 @@ type ApiObjectStore interface {
 	// GetScanners returns the parsed scanners as API objects.
 	GetScanners(context.Context) []*api.Scanner
 
+	// GetCronjobReplicationRules returns the "skopeo" typed replication rules
+	// deployed to Kubernetes as cronjobs
+	GetCronjobReplicationRules(context.Context, globalregistry.Registry, globalregistry.Project) ([]globalregistry.ReplicationRule, error)
+
 	// GetGlobalRegistryOptions returns the ApiObjectStore related CLI options of an
 	// apply.
 	GetGlobalRegistryOptions() globalregistry.RegistryOptions

@@ -110,6 +110,21 @@ func (ra *rRuleRemoveAction) Perform(ctx context.Context, reg globalregistry.Reg
 	if err != nil {
 		return nilEffect, err
 	}
+
+	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+	if manipulatorCtx == nil {
+		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+	}
+	aos, ok := manipulatorCtx.(config.ApiObjectStore)
+	if !ok {
+		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+	}
+	skopeoReplicationRules, err := aos.GetCronjobReplicationRules(ctx, reg, project)
+	if err != nil {
+		return nil, err
+	}
+	rRules = append(rRules, skopeoReplicationRules...)
+
 	for _, rRule := range rRules {
 		destructibleReplicationRule, ok := rRule.(globalregistry.DestructibleReplicationRule)
 		if !ok {

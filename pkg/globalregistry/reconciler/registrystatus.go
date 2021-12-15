@@ -18,6 +18,7 @@ package reconciler
 
 import (
 	"context"
+	"fmt"
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
@@ -120,13 +121,33 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 		projectWithReplication, ok := project.(globalregistry.ProjectWithReplication)
 
 		if ok {
-			replicationRules, err := projectWithReplication.GetReplicationRules(ctx, nil, "")
+			basicReplicationRules, err := projectWithReplication.GetReplicationRules(ctx, nil, "")
 			if err != nil {
 				return nil, err
 			}
+
+			var collectiveReplicationRules []globalregistry.ReplicationRule
+			collectiveReplicationRules = append(collectiveReplicationRules, basicReplicationRules...)
+
 			projectWithRepositories, realProject := project.(globalregistry.ProjectWithRepositories)
-			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, len(replicationRules))
-			for n, rule := range replicationRules {
+			if realProject {
+				manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+				if manipulatorCtx == nil {
+					return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+				}
+				aos, ok := manipulatorCtx.(config.ApiObjectStore)
+				if !ok {
+					return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+				}
+				skopeoReplicationRules, err := aos.GetCronjobReplicationRules(ctx, reg, project)
+				if err != nil {
+					return nil, err
+				}
+				collectiveReplicationRules = append(collectiveReplicationRules, skopeoReplicationRules...)
+			}
+
+			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, len(collectiveReplicationRules))
+			for n, rule := range collectiveReplicationRules {
 				projectStatuses[i].ReplicationRules[n].RemoteRegistryName = rule.RemoteRegistry().GetName()
 				projectStatuses[i].ReplicationRules[n].Trigger = api.ReplicationTrigger{
 					Type:     rule.Trigger().TriggerType(),

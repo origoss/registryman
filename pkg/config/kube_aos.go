@@ -351,3 +351,23 @@ func (aos *kubeApiObjectStore) UpdateRegistryStatus(ctx context.Context, reg *ap
 	})
 	return err
 }
+
+func (aos *kubeApiObjectStore) GetCronjobReplicationRules(ctx context.Context, sourceRegistry globalregistry.Registry,
+	project globalregistry.Project) ([]globalregistry.ReplicationRule, error) {
+
+	cronJobFactory, err := NewCjFactory(sourceRegistry, project)
+	if err != nil {
+		return nil, err
+	}
+
+	cronJobReplicationRules, err := cronJobFactory.GetAllCronJobsForProject(ctx, project, sourceRegistry.GetName())
+	if err != nil {
+		return nil, err
+	}
+	results := make([]globalregistry.ReplicationRule, 0)
+	for _, cjRule := range cronJobReplicationRules {
+		results = append(results, &cjRule)
+	}
+
+	return results, nil
+}

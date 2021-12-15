@@ -316,19 +316,6 @@ func (p *project) GetReplicationRules(ctx context.Context, trigger globalregistr
 			results = append(results, replRule)
 		}
 	}
-
-	cronJobFactory, err := config.NewCjFactory(p.registry, p)
-	if err != nil {
-		return nil, err
-	}
-	cronJobReplicationRules, err := cronJobFactory.GetAllCronJobsForProject(ctx, p, p.registry.GetName())
-	if err != nil {
-		return nil, err
-	}
-
-	for _, rule := range cronJobReplicationRules {
-		results = append(results, &rule)
-	}
 	return results, nil
 }
 
