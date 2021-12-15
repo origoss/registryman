@@ -49,7 +49,7 @@ func (rt replicationTrigger) TriggerType() api.ReplicationTriggerType {
 }
 
 func (rt replicationTrigger) TriggerSchedule() string {
-	scheduleWords := strings.SplitN(rt.TriggerSettings.Cron, "", 2)
+	scheduleWords := strings.SplitN(rt.TriggerSettings.Cron, " ", 2)
 	if len(scheduleWords) != 2 {
 		return rt.TriggerSettings.Cron
 	}
