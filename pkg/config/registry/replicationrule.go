@@ -55,8 +55,9 @@ func calculateReplicationRule(local, remote registryCapabilities) calculatedRepl
 
 type replicationRule struct {
 	calculatedReplication
-	project *project
-	remote  *Registry
+	project               *project
+	remote                *Registry
+	replicationAnnotation string
 }
 
 var _ globalregistry.ReplicationRule = &replicationRule{}
@@ -135,4 +136,21 @@ func (rule *replicationRule) Direction() string {
 
 func (rule *replicationRule) RemoteRegistry() globalregistry.Registry {
 	return rule.remote
+}
+
+func (rule *replicationRule) Type() globalregistry.ReplicationType {
+	switch rule.Trigger().TriggerType() {
+	case api.ManualReplicationTriggerType, api.EventBasedReplicationTriggerType:
+		return globalregistry.RegistryReplication
+	case api.CronReplicationTriggerType:
+		switch rule.replicationAnnotation {
+		case "registry":
+			return globalregistry.RegistryReplication
+		default:
+			return globalregistry.SkopeoReplication
+
+		}
+	default:
+		return globalregistry.SkopeoReplication
+	}
 }

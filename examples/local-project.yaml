@@ -6,12 +6,12 @@ metadata:
 spec:
   type: Local
   localRegistries:
-  - local-reg
+    - local-reg
   members:
-  - name: alpha
-    role: Maintainer
-  - name: beta
-    role: Developer
+    - name: alpha
+      role: Maintainer
+    - name: beta
+      role: Developer
   scanner: anchore-scanner
   trigger:
     type: cron

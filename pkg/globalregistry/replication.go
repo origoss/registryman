@@ -44,6 +44,9 @@ type ReplicationRule interface {
 	// RemoteRegistry returns the remote registry which is subject to the
 	// replication.
 	RemoteRegistry() Registry
+
+	// Type returns the replication type, e.g. skopeo or registry based.
+	Type() ReplicationType
 }
 
 // DestructibleReplicationRule interface declares the methods that can be used

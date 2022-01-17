@@ -18,9 +18,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"context"
+
 	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	"github.com/kubermatic-labs/registryman/pkg/skopeo"
@@ -29,7 +31,6 @@ import (
 
 var destinationPath string
 
-// exportCmd represents the export command
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "It creates a backup for a given project in tar format",
@@ -49,7 +50,7 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		project, err := config.GetProjectByName(ctx, aos, projectName)
 		if err != nil {
@@ -60,7 +61,10 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		if err != nil {
 			return err
 		}
-		transfer := skopeo.New(project.Registry.GetUsername(), project.Registry.GetPassword())
+		transfer, err := skopeo.NewForCli(project.Registry.GetUsername(), project.Registry.GetPassword())
+		if err != nil {
+			return err
+		}
 
 		projectWithRepositories, ok := project.Project.(globalregistry.ProjectWithRepositories)
 		if !ok {
@@ -70,14 +74,20 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 		if err != nil {
 			return err
 		}
+
 		for _, repoName := range repositories {
 			repoFullPath := fmt.Sprintf("%s/%s", projectFullPath, repoName)
 			logger.Info("exporting repository", "path", repoFullPath)
-			err = transfer.Export(repoFullPath, destinationPath, logger)
-			if err != nil {
+			skopeoCommand := transfer.Export(repoFullPath, destinationPath, logger)
+
+			skopeoCommand.Stderr = os.Stderr
+			skopeoCommand.Stdout = os.Stdout
+
+			if err := skopeoCommand.Run(); err != nil {
 				return err
 			}
 		}
+
 		logger.Info("exporting project finished", "result path", destinationPath)
 		return nil
 	},
@@ -86,5 +96,5 @@ path/filename of the generated tar file can also be overwritten with the '-o' fl
 func init() {
 	rootCmd.AddCommand(exportCmd)
 
-	exportCmd.PersistentFlags().StringVarP(&destinationPath, "output", "o", "./exported-registry", "The path for the saved repositories")
+	exportCmd.PersistentFlags().StringVarP(&destinationPath, "output", "o", "./exported-repositories", "The path for the saved repositories")
 }

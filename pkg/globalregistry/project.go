@@ -61,6 +61,10 @@ type Project interface {
 type ProjectWithRepositories interface {
 	// GetRepositories returns the repositories found in the project
 	GetRepositories(context.Context) ([]string, error)
+
+	// UpdateRepositoryListConfigMaps updates the configmaps containing the
+	// list of repositories found in projects
+	UpdateRepositoryListConfigMaps(ctx context.Context, rule ReplicationRule) error
 }
 
 // Project interface defines the methods that can be performed on a project of a

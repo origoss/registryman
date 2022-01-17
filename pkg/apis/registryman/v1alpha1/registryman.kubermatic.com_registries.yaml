@@ -121,6 +121,10 @@ spec:
                     description: HasProjectStorageReport shows whether the registry
                       understands the concept of project level storage reporting.
                     type: boolean
+                  hasProjectWithRepositories:
+                    description: HasProjectWithRepositories shows whether the registry
+                      can contain repositories within projects.
+                    type: boolean
                 required:
                 - canCreateProject
                 - canDeleteProject
@@ -133,6 +137,7 @@ spec:
                 - hasProjectReplicationRules
                 - hasProjectScanners
                 - hasProjectStorageReport
+                - hasProjectWithRepositories
                 type: object
               projects:
                 items:
@@ -181,6 +186,10 @@ spec:
                             description: Direction shows whether the replication is
                               of type pull or push.
                             type: string
+                          provider:
+                            description: Provider shows where the replication logic
+                              is implemented.
+                            type: string
                           remoteRegistryName:
                             description: RemoteRegistryName indicates the name of
                               the remote registry which the current registry shall
@@ -199,6 +208,7 @@ spec:
                             type: object
                         required:
                         - direction
+                        - provider
                         - remoteRegistryName
                         - trigger
                         type: object

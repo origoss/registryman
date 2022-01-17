@@ -34,11 +34,12 @@ type rRuleAddAction struct {
 var _ Action = &rRuleAddAction{}
 
 func (ra *rRuleAddAction) String() string {
-	return fmt.Sprintf("adding replication rule for %s: %s [%s] on %s",
+	return fmt.Sprintf("adding replication rule for %s: %s [%s] on %s with %s",
 		ra.projectName,
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
+		ra.Provider,
 	)
 }
 
@@ -51,13 +52,30 @@ func (ra *rRuleAddAction) Perform(ctx context.Context, reg globalregistry.Regist
 	if remoteRegistry == nil {
 		return nilEffect, fmt.Errorf("registry %s not found in object store", ra.RemoteRegistryName)
 	}
-	replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
-	if !ok {
-		// registry does not support project level replication
-		return nilEffect, nil
+
+	switch ra.Provider {
+	case "registry":
+		replicationRuleManipulatorProject, ok := project.(globalregistry.ReplicationRuleManipulatorProject)
+		if !ok {
+			// registry does not support project level replication
+			return nilEffect, nil
+		}
+		_, err = replicationRuleManipulatorProject.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+		if err != nil {
+			return nilEffect, err
+		}
+	case "skopeo":
+		cronJobFactory, err := config.NewCjFactory(reg, project)
+		if err != nil {
+			return nilEffect, err
+		}
+		_, err = cronJobFactory.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
+		if err != nil {
+			return nilEffect, err
+		}
 	}
-	_, err = replicationRuleManipulatorProject.AssignReplicationRule(ctx, remoteRegistry, ra.Trigger, ra.Direction)
-	return nilEffect, err
+
+	return nilEffect, nil
 }
 
 type rRuleRemoveAction struct {
@@ -69,11 +87,12 @@ type rRuleRemoveAction struct {
 var _ Action = &rRuleRemoveAction{}
 
 func (ra *rRuleRemoveAction) String() string {
-	return fmt.Sprintf("removing replication rule for %s: %s [%s] on %s",
+	return fmt.Sprintf("removing replication rule for %s: %s [%s] on %s with %s",
 		ra.projectName,
 		ra.RemoteRegistryName,
 		ra.Direction,
 		ra.Trigger.TriggerType(),
+		ra.Provider,
 	)
 }
 
@@ -91,6 +110,21 @@ func (ra *rRuleRemoveAction) Perform(ctx context.Context, reg globalregistry.Reg
 	if err != nil {
 		return nilEffect, err
 	}
+
+	manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+	if manipulatorCtx == nil {
+		return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+	}
+	aos, ok := manipulatorCtx.(config.ApiObjectStore)
+	if !ok {
+		return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+	}
+	skopeoReplicationRules, err := aos.GetCronjobReplicationRules(ctx, reg, project)
+	if err != nil {
+		return nil, err
+	}
+	rRules = append(rRules, skopeoReplicationRules...)
+
 	for _, rRule := range rRules {
 		destructibleReplicationRule, ok := rRule.(globalregistry.DestructibleReplicationRule)
 		if !ok {

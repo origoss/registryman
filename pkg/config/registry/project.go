@@ -58,6 +58,7 @@ func (proj *project) GetReplicationRules(ctx context.Context, trigger globalregi
 	case api.GlobalProjectType:
 		for _, r := range proj.registry.apiProvider.GetRegistries(ctx) {
 			remoteReg := New(r, proj.registry.apiProvider)
+
 			if proj.registry.GetName() != r.GetName() {
 				calcRepl := calculateReplicationRule(
 					proj.registry.registryCapabilities(),
@@ -68,6 +69,7 @@ func (proj *project) GetReplicationRules(ctx context.Context, trigger globalregi
 						calculatedReplication: calcRepl,
 						project:               proj,
 						remote:                remoteReg,
+						replicationAnnotation: proj.Annotations["registryman.kubermatic.com/replication"],
 					}
 					if trigger != nil && trigger != repRule.Trigger() {
 						continue

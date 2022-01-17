@@ -49,7 +49,7 @@ func (rt replicationTrigger) TriggerType() api.ReplicationTriggerType {
 }
 
 func (rt replicationTrigger) TriggerSchedule() string {
-	scheduleWords := strings.SplitN(rt.TriggerSettings.Cron, "", 2)
+	scheduleWords := strings.SplitN(rt.TriggerSettings.Cron, " ", 2)
 	if len(scheduleWords) != 2 {
 		return rt.TriggerSettings.Cron
 	}
@@ -128,4 +128,8 @@ func (r *replicationRule) RemoteRegistry() globalregistry.Registry {
 
 func (r *replicationRule) Delete(ctx context.Context) error {
 	return r.registry.deleteReplicationRule(ctx, r.ID)
+}
+
+func (r *replicationRule) Type() globalregistry.ReplicationType {
+	return globalregistry.RegistryReplication
 }

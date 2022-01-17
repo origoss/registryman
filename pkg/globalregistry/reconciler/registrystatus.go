@@ -18,6 +18,7 @@ package reconciler
 
 import (
 	"context"
+	"fmt"
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	"github.com/kubermatic-labs/registryman/pkg/config"
@@ -64,6 +65,9 @@ func getRegistryCapabilities(ctx context.Context, reg globalregistry.Registry) (
 	if _, ok := dummyProject.(globalregistry.ProjectWithReplication); ok {
 		registryCapabilities.HasProjectReplicationRules = true
 	}
+	if _, ok := dummyProject.(globalregistry.ProjectWithRepositories); ok {
+		registryCapabilities.HasProjectWithRepositories = true
+	}
 	if _, ok := dummyProject.(globalregistry.ReplicationRuleManipulatorProject); ok {
 		registryCapabilities.CanManipulateProjectReplicationRules = true
 	}
@@ -72,6 +76,9 @@ func getRegistryCapabilities(ctx context.Context, reg globalregistry.Registry) (
 	}
 	return registryCapabilities, nil
 }
+
+// runs for both expected and actual case
+//func GetCronReplicationRuleStatus()
 
 // GetRegistryStatus function calculate the status of a registry. If the
 // registry represents a configuration of registry, then the expected registry
@@ -112,19 +119,49 @@ func GetRegistryStatus(ctx context.Context, reg globalregistry.Registry) (*api.R
 			projectStatuses[i].Members = make([]api.MemberStatus, 0)
 		}
 		projectWithReplication, ok := project.(globalregistry.ProjectWithReplication)
+
 		if ok {
-			replicationRules, err := projectWithReplication.GetReplicationRules(ctx, nil, "")
+			basicReplicationRules, err := projectWithReplication.GetReplicationRules(ctx, nil, "")
 			if err != nil {
 				return nil, err
 			}
-			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, len(replicationRules))
-			for n, rule := range replicationRules {
+
+			var collectiveReplicationRules []globalregistry.ReplicationRule
+			collectiveReplicationRules = append(collectiveReplicationRules, basicReplicationRules...)
+
+			projectWithRepositories, realProject := project.(globalregistry.ProjectWithRepositories)
+			if realProject {
+				manipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
+				if manipulatorCtx == nil {
+					return nil, fmt.Errorf("context shall contain ResourceManipulatorKey")
+				}
+				aos, ok := manipulatorCtx.(config.ApiObjectStore)
+				if !ok {
+					return nil, fmt.Errorf("manipulatorCtx is not a proper ManifestManipulator")
+				}
+				skopeoReplicationRules, err := aos.GetCronjobReplicationRules(ctx, reg, project)
+				if err != nil {
+					return nil, err
+				}
+				collectiveReplicationRules = append(collectiveReplicationRules, skopeoReplicationRules...)
+			}
+
+			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, len(collectiveReplicationRules))
+			for n, rule := range collectiveReplicationRules {
 				projectStatuses[i].ReplicationRules[n].RemoteRegistryName = rule.RemoteRegistry().GetName()
 				projectStatuses[i].ReplicationRules[n].Trigger = api.ReplicationTrigger{
 					Type:     rule.Trigger().TriggerType(),
 					Schedule: rule.Trigger().TriggerSchedule(),
 				}
 				projectStatuses[i].ReplicationRules[n].Direction = rule.Direction()
+				projectStatuses[i].ReplicationRules[n].Provider = string(rule.Type())
+
+				if realProject {
+					err := projectWithRepositories.UpdateRepositoryListConfigMaps(ctx, rule)
+					if err != nil {
+						return nil, err
+					}
+				}
 			}
 		} else {
 			projectStatuses[i].ReplicationRules = make([]api.ReplicationRuleStatus, 0)

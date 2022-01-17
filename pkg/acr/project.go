@@ -75,6 +75,11 @@ func (p *project) GetRepositories(ctx context.Context) ([]string, error) {
 	return collectReposOfProject(p.name, repos), nil
 }
 
+func (p *project) UpdateRepositoryListConfigMaps(ctx context.Context, rule globalregistry.ReplicationRule) error {
+	// TODO: copy harbor impementation
+	return nil
+}
+
 func (p *project) deleteRepository(repoName string) error {
 	return p.registry.deleteRepoOfProject(repoName)
 }

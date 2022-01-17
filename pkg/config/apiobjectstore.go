@@ -20,11 +20,9 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	_ "github.com/kubermatic-labs/registryman/pkg/acr"
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
 	_ "github.com/kubermatic-labs/registryman/pkg/artifactory"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
-	_ "github.com/kubermatic-labs/registryman/pkg/harbor"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,14 +47,31 @@ func init() {
 	scheme.AddKnownTypeWithName(secret.GroupVersionKind(), secret)
 }
 
-// ApiObjectStore interface is an abstract interface that hides the difference
-// between the local file and Kubernetes resource based config management.
-type ApiObjectStore interface {
+type ResourceManipulatorContextKey string
+
+// ResourceManipulatorContextKey is a context key that may be parsed by a
+// SideEffect. The value can be used by the SideEffect to create or to remove
+// manifest files.
+//
+// The value shall implement the following interface:
+//   type manifestManipulator interface {
+//	WriteManifest(filename string, obj runtime.Object) error
+//	RemoveManifest(filename string) error
+//   }
+var ResourceManipulatorKey = ResourceManipulatorContextKey("resource-manipulator")
+
+type ResourceManipulator interface {
 	// WriteResource serializes the object specified by the obj parameter.
 	WriteResource(ctx context.Context, obj runtime.Object) error
 
 	// RemoveResource removes the file from the filesystem.
 	RemoveResource(ctx context.Context, obj runtime.Object) error
+}
+
+// ApiObjectStore interface is an abstract interface that hides the difference
+// between the local file and Kubernetes resource based config management.
+type ApiObjectStore interface {
+	ResourceManipulator
 
 	// GetRegistries returns the parsed registries as API objects.
 	GetRegistries(context.Context) []*api.Registry
@@ -66,6 +81,10 @@ type ApiObjectStore interface {
 
 	// GetScanners returns the parsed scanners as API objects.
 	GetScanners(context.Context) []*api.Scanner
+
+	// GetCronjobReplicationRules returns the "skopeo" typed replication rules
+	// deployed to Kubernetes as cronjobs
+	GetCronjobReplicationRules(context.Context, globalregistry.Registry, globalregistry.Project) ([]globalregistry.ReplicationRule, error)
 
 	// GetGlobalRegistryOptions returns the ApiObjectStore related CLI options of an
 	// apply.

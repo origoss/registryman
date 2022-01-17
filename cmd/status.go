@@ -74,6 +74,7 @@ var statusCmd = &cobra.Command{
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		manipulatorCtx := context.WithValue(ctx, config.ResourceManipulatorKey, aos)
 		defer cancel()
 		expectedRegistries := config.NewExpectedProvider(aos).GetRegistries(ctx)
 		registryStatuses := map[string]*api.RegistryStatus{}
@@ -90,7 +91,7 @@ var statusCmd = &cobra.Command{
 					return err
 				}
 			}
-			registryStatuses[expectedRegistry.GetName()], err = reconciler.GetRegistryStatus(ctx, actualRegistry)
+			registryStatuses[expectedRegistry.GetName()], err = reconciler.GetRegistryStatus(manipulatorCtx, actualRegistry)
 			if err != nil {
 				return err
 			}

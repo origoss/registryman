@@ -132,6 +132,10 @@ type RegistryCapabilities struct {
 	// concept of project level replication rules.
 	HasProjectReplicationRules bool `json:"hasProjectReplicationRules"`
 
+	// HasProjectWithRepositories shows whether the registry can contain
+	// repositories within projects.
+	HasProjectWithRepositories bool `json:"hasProjectWithRepositories"`
+
 	// HasProjectStorageReport shows whether the registry understands the concept
 	// of project level storage reporting.
 	HasProjectStorageReport bool `json:"hasProjectStorageReport"`
@@ -189,6 +193,9 @@ type ReplicationRuleStatus struct {
 
 	// Direction shows whether the replication is of type pull or push.
 	Direction string `json:"direction"`
+
+	// Provider shows where the replication logic is implemented.
+	Provider string `json:"provider"`
 }
 
 // ScannerStatus specifies the status of a project's external vulnerability scanner.
@@ -526,10 +533,11 @@ func (rtt *ReplicationTriggerType) UnmarshalText(text []byte) error {
 		*rtt = ManualReplicationTriggerType
 	case "event_based":
 		*rtt = EventBasedReplicationTriggerType
-	case "cron":
+	case "cron", "scheduled":
 		*rtt = CronReplicationTriggerType
 	default:
 		*rtt = UndefinedRepliationTriggerType
+		return fmt.Errorf("UndefinedRepliationTriggerType")
 	}
 	return nil
 }

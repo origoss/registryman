@@ -9,4 +9,5 @@ Makefile
 *.tar
 .vscode/
 registryman-test
-exported-registry
+exported-repositories
+registryman-skopeo

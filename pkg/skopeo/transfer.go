@@ -18,98 +18,111 @@ package skopeo
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
-	"github.com/containers/image/v5/directory"
-	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/types"
 	"github.com/go-logr/logr"
+
+	_ "embed"
 )
 
+const (
+	//commandPath = "registryman-skopeo"
+	commandPath = "skopeo"
+
+	syncCommand                = "sync"
+	sourceTransportFlag        = "--src"
+	destinationTransportFlag   = "--dest"
+	dockerTransport            = "docker"
+	directoryTransport         = "dir"
+	scopedFlag                 = "--scoped"
+	sourceCredentialsFlag      = "--src-creds"
+	destinationCredentialsFlag = "--dest-creds"
+)
+
+//go:embed skopeo
+var skopeoBinary []byte
+
 type transfer struct {
-	dockerCtx *types.SystemContext
-	dirCtx    *types.SystemContext
-}
-type transferData struct {
-	sourcePath           string
-	destinationPath      string
-	sourceCtx            *types.SystemContext
-	destinationCtx       *types.SystemContext
-	sourceTransport      string
-	destinationTransport string
-	scoped               bool
+	username string
+	password string
 }
 
-// New creates a new transfer struct.
-func New(username, password string) *transfer {
+// NewForCli creates a new transfer struct.
+func NewForCli(username, password string) (*transfer, error) {
+	err := os.WriteFile(commandPath, skopeoBinary, 0711)
+	if err != nil {
+		return nil, err
+	}
 	return &transfer{
-		dockerCtx: &types.SystemContext{
-			DockerAuthConfig: &types.DockerAuthConfig{
-				Username: username,
-				Password: password,
-			},
-		},
-		dirCtx: &types.SystemContext{},
+		username: username,
+		password: password,
+	}, nil
+}
+
+func NewForOperator(username, password string) *transfer {
+	return &transfer{
+		username: username,
+		password: password,
 	}
 }
 
 // Export exports Docker repositories from a source repository to a destination path.
-func (t *transfer) Export(source, destination string, logger logr.Logger) error {
+func (t *transfer) Export(source, destination string, logger logr.Logger) *exec.Cmd {
 	logger.Info("exporting images started")
 
-	err := syncImages(&transferData{
-		sourcePath:           source,
-		destinationPath:      destination,
-		sourceCtx:            t.dockerCtx,
-		destinationCtx:       t.dirCtx,
-		sourceTransport:      docker.Transport.Name(),
-		destinationTransport: directory.Transport.Name(),
-		scoped:               true,
-	})
-
-	if err != nil {
-		return fmt.Errorf("syncing images failed: %w", err)
-	}
-
-	return nil
+	return exec.Command(
+		fmt.Sprintf("./%s", commandPath),
+		syncCommand,
+		sourceTransportFlag,
+		dockerTransport,
+		destinationTransportFlag,
+		directoryTransport,
+		scopedFlag,
+		sourceCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		source,
+		destination,
+	)
 }
 
 // Import imports Docker repositories from a source path to a destination repository.
-func (t *transfer) Import(source, destination string, logger logr.Logger) error {
+func (t *transfer) Import(source, destination string, logger logr.Logger) *exec.Cmd {
 	logger.Info("importing images started")
 
-	err := syncImages(&transferData{
-		sourcePath:           source,
-		destinationPath:      destination,
-		sourceCtx:            t.dirCtx,
-		destinationCtx:       t.dockerCtx,
-		sourceTransport:      directory.Transport.Name(),
-		destinationTransport: docker.Transport.Name(),
-		scoped:               false,
-	})
-
-	if err != nil {
-		return fmt.Errorf("syncing images failed: %w", err)
-	}
-
-	return nil
+	return exec.Command(
+		fmt.Sprintf("./%s", commandPath),
+		syncCommand,
+		sourceTransportFlag,
+		directoryTransport,
+		destinationTransportFlag,
+		dockerTransport,
+		destinationCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		source,
+		destination,
+	)
 }
 
-// Sync synchronizes Docker repositories from a source repository to a destination repository.
-func (t *transfer) Sync(sourceRepo, destinationRepo string, logger logr.Logger) error {
-	logger.Info("syncing images started")
-	err := syncImages(&transferData{
-		sourcePath:           sourceRepo,
-		destinationPath:      destinationRepo,
-		sourceCtx:            t.dockerCtx,
-		destinationCtx:       t.dockerCtx,
-		sourceTransport:      docker.Transport.Name(),
-		destinationTransport: docker.Transport.Name(),
-		scoped:               false,
-	})
-
-	if err != nil {
-		return fmt.Errorf("syncing images failed: %w", err)
+func (t *transfer) Sync(forCronJob bool, source, destination, destUserName, destPassword string) *exec.Cmd {
+	syncSource := source
+	executablePrefix := "./"
+	if forCronJob {
+		syncSource = "\"$repo\""
+		executablePrefix = ""
 	}
-
-	return nil
+	return exec.Command(
+		fmt.Sprintf("%s%s", executablePrefix, commandPath),
+		syncCommand,
+		sourceTransportFlag,
+		dockerTransport,
+		destinationTransportFlag,
+		dockerTransport,
+		sourceCredentialsFlag,
+		fmt.Sprintf("%s:%s", t.username, t.password),
+		destinationCredentialsFlag,
+		fmt.Sprintf("%s:%s", destUserName, destPassword),
+		syncSource,
+		destination,
+	)
 }

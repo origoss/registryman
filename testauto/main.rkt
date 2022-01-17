@@ -105,6 +105,7 @@
       (with-handlers ([exn:fail?
                        (λ (e)
                          (displayln "\n\n ######### EXECUTION FAILED ########\n\n")
+                         (displayln e)
                          (let ([executed-tests (append (takef paths
                                                               (λ (p) (not (equal? p path))))
                                                        (list path))])
