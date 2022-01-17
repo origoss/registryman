@@ -81,5 +81,5 @@ func (p *project) UpdateRepositoryListConfigMaps(ctx context.Context, rule globa
 }
 
 func (p *project) deleteRepository(repoName string) error {
-	return p.registry.deleteRepoOfProject(p, repoName)
+	return p.registry.deleteRepoOfProject(repoName)
 }

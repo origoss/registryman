@@ -20,22 +20,30 @@ import (
 	"context"
 
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type nilSideEffect struct{}
 
-func (se nilSideEffect) Perform(context.Context) error {
+func (se nilSideEffect) Perform(context.Context, SideEffectPerformer) error {
 	return nil
 }
 
-var nilEffect = nilSideEffect{}
+var nilEffect SideEffect = nilSideEffect{}
+
+// SideEffectPerformer interface declares the methods that a SideEffect wants to
+// use.
+type SideEffectPerformer interface {
+	WriteResource(ctx context.Context, obj runtime.Object) error
+	RemoveResource(ctx context.Context, obj runtime.Object) error
+}
 
 // SideEffect interface contains the methods that a sideeffect needs to
 // implement. SideEffects are optional operations that are performed after
 // Actions. SideEffect can be used for e.g. file manipulations at the local
 // filesystem.
 type SideEffect interface {
-	Perform(context.Context) error
+	Perform(context.Context, SideEffectPerformer) error
 }
 
 // Action interface contains the methods that a reconciliation action needs to

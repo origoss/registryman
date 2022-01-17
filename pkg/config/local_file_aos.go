@@ -162,12 +162,8 @@ func validateObjects(o runtime.Object, gvk *schema.GroupVersionKind) error {
 	if results.HasErrors() {
 		return results.AsError()
 	}
-	switch gvk.Kind {
-	case "Project":
-		return checkProject(o.(*api.Project))
-	default:
-		return nil
-	}
+
+	return nil
 }
 
 // GetRegistries returns the parsed registries as API objects.
@@ -217,17 +213,4 @@ func (aos *localFileApiObjectStore) GetGlobalRegistryOptions() globalregistry.Re
 
 func (aos *localFileApiObjectStore) GetLogger() logr.Logger {
 	return logger
-}
-
-func (aos *localFileApiObjectStore) UpdateRegistryStatus(ctx context.Context, reg *api.Registry) error {
-	// We don't persist the status for filesystem based resources.
-	return nil
-}
-
-func (aos *localFileApiObjectStore) GetCronjobReplicationRules(ctx context.Context, sourceRegistry globalregistry.Registry,
-	project globalregistry.Project) ([]globalregistry.ReplicationRule, error) {
-
-	var results []globalregistry.ReplicationRule
-
-	return results, nil
 }

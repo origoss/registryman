@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-logr/logr"
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
+	_ "github.com/kubermatic-labs/registryman/pkg/artifactory"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 
 	corev1 "k8s.io/api/core/v1"
@@ -92,8 +93,4 @@ type ApiObjectStore interface {
 	// GetLogger returns the logr.Logger interface that the ApiObjectStore is using
 	// for logging.
 	GetLogger() logr.Logger
-
-	// UpdateRegistryStatus persists the registry status of the given
-	// Registry resource.
-	UpdateRegistryStatus(context.Context, *api.Registry) error
 }

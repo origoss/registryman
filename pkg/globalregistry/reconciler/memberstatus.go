@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 
 	api "github.com/kubermatic-labs/registryman/pkg/apis/registryman/v1alpha1"
-	"github.com/kubermatic-labs/registryman/pkg/config"
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,15 +93,7 @@ type persistMemberCredentials struct {
 
 var _ SideEffect = &persistMemberCredentials{}
 
-func (pmc *persistMemberCredentials) Perform(ctx context.Context) error {
-	sideEffectManipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
-	if sideEffectManipulatorCtx == nil {
-		return fmt.Errorf("context shall contain SideEffectManifestManipulator")
-	}
-	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ResourceManipulator)
-	if !ok {
-		return fmt.Errorf("SideEffectManifestManipulator is not a proper manifestManipulator")
-	}
+func (pmc *persistMemberCredentials) Perform(ctx context.Context, performer SideEffectPerformer) error {
 	buf := bytes.NewBuffer(nil)
 	encoder := base64.NewEncoder(base64.StdEncoding, buf)
 	_, err := fmt.Fprintf(encoder, "%s:%s",
@@ -136,7 +127,7 @@ func (pmc *persistMemberCredentials) Perform(ctx context.Context) error {
 		"globalregistry.org/registry-name": pmc.registry.GetName(),
 	})
 
-	return manifestManipulator.WriteResource(ctx, secret)
+	return performer.WriteResource(ctx, secret)
 }
 
 func (ma *memberAddAction) Perform(ctx context.Context, reg globalregistry.Registry) (SideEffect, error) {
@@ -174,15 +165,7 @@ type removeMemberCredentials struct {
 
 var _ SideEffect = &removeMemberCredentials{}
 
-func (rmc *removeMemberCredentials) Perform(ctx context.Context) error {
-	sideEffectManipulatorCtx := ctx.Value(config.ResourceManipulatorKey)
-	if sideEffectManipulatorCtx == nil {
-		return fmt.Errorf("context shall contain SideEffectManifestManipulator")
-	}
-	manifestManipulator, ok := sideEffectManipulatorCtx.(config.ResourceManipulator)
-	if !ok {
-		return fmt.Errorf("SideEffectManifestManipulator is not a proper manifestManipulator")
-	}
+func (rmc *removeMemberCredentials) Perform(ctx context.Context, performer SideEffectPerformer) error {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -195,7 +178,7 @@ func (rmc *removeMemberCredentials) Perform(ctx context.Context) error {
 		rmc.action.Name,
 	)
 	secret.SetName(name)
-	return manifestManipulator.RemoveResource(ctx, secret)
+	return performer.RemoveResource(ctx, secret)
 }
 
 type memberRemoveAction struct {

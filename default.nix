@@ -7,8 +7,8 @@
   registryman-git-rev ? "",
   registryman-git-ref ? "",
   registryman-git-url ? "git@github.com:origoss/registryman.git",
-  local-vendor-sha256 ? "1g3v2xqbvs26gzlhbh7jqmj5hnjncw5rf4w8hg9ap6jsl0v4575c",
-  git-vendor-sha256 ? "1g3v2xqbvs26gzlhbh7jqmj5hnjncw5rf4w8hg9ap6jsl0v4575c",
+  local-vendor-sha256 ? "03hz57hgmzdr9zyzfar9k2qbhip6dwcd0fgfvgk5cqzyhv7hpp8k",
+  git-vendor-sha256 ? "0gcxhzi24ali7kn9433igmzkw36yf7svvgnvv2jc7xsfhg165p63",
   registryman-from ? "local",
 }:
 
@@ -118,9 +118,13 @@ let
         "registryman-cert-issuer.yaml"
         "registryman-webhook-certificate.yaml"
         "registryman-webhook-serviceaccount.yaml"
+        "registryman-serviceaccount.yaml"
+        "registryman-deployment.yaml"
         "registryman-webhook-deployment.yaml"
         "registryman-webhook-clusterrole.yaml"
         "registryman-webhook-clusterrolebinding.yaml"
+        "registryman-clusterrole.yaml"
+        "registryman-clusterrolebinding.yaml"
         "registryman-webhook-vwc.yaml"
         "registryman-webhook-service.yaml"
       ];
@@ -147,9 +151,13 @@ let
         "registryman-cert-issuer.yaml"
         "registryman-webhook-certificate.yaml"
         "registryman-webhook-serviceaccount.yaml"
+        "registryman-serviceaccount.yaml"
         "registryman-webhook-deployment.yaml"
+        "registryman-deployment.yaml"
         "registryman-webhook-clusterrole.yaml"
         "registryman-webhook-clusterrolebinding.yaml"
+        "registryman-clusterrole.yaml"
+        "registryman-clusterrolebinding.yaml"
         "registryman-webhook-vwc.yaml"
         "registryman-webhook-service.yaml"
       ];
@@ -162,6 +170,7 @@ let
       ];
       patchesStrategicMerge = [
         "registryman-webhook-deployment-verbose-patch.yaml"
+        "registryman-deployment-verbose-patch.yaml"
       ];
     };
   };
@@ -176,7 +185,11 @@ let
       cp -a $src/registryman-cert-issuer.yaml $out
       cp -a $src/registryman-webhook-certificate.yaml $out
       cp -a $src/registryman-webhook-serviceaccount.yaml $out
+      cp -a $src/registryman-serviceaccount.yaml $out
       cp -a $src/registryman-webhook-deployment.yaml $out
+      cp -a $src/registryman-deployment.yaml $out
+      cp -a $src/registryman-clusterrole.yaml $out
+      cp -a $src/registryman-clusterrolebinding.yaml $out
       cp -a $src/registryman-webhook-clusterrole.yaml $out
       cp -a $src/registryman-webhook-clusterrolebinding.yaml $out
       cp -a $src/registryman-webhook-vwc.yaml $out
@@ -193,12 +206,17 @@ let
       cp -a $src/registryman-cert-issuer.yaml $out
       cp -a $src/registryman-webhook-certificate.yaml $out
       cp -a $src/registryman-webhook-serviceaccount.yaml $out
+      cp -a $src/registryman-serviceaccount.yaml $out
       cp -a $src/registryman-webhook-deployment.yaml $out
+      cp -a $src/registryman-deployment.yaml $out
       cp -a $src/registryman-webhook-clusterrole.yaml $out
       cp -a $src/registryman-webhook-clusterrolebinding.yaml $out
+      cp -a $src/registryman-clusterrole.yaml $out
+      cp -a $src/registryman-clusterrolebinding.yaml $out
       cp -a $src/registryman-webhook-vwc.yaml $out
       cp -a $src/registryman-webhook-service.yaml $out
       cp -a $src/registryman-webhook-deployment-verbose-patch.yaml $out
+      cp -a $src/registryman-deployment-verbose-patch.yaml $out
     '';
 
   image-tag = builtins.hashString "sha256" (builtins.toString registryman-built);
@@ -301,7 +319,6 @@ let
   '';
 
 in {
-  # inherit registryman-local registryman-git;
   inherit registryman-built generated-code registryman-deployment-manifests
     registryman-deployment-manifests-verbose image-tag;
 

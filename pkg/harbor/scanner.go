@@ -19,6 +19,8 @@ package harbor
 import (
 	// "context"
 
+	"strings"
+
 	"github.com/kubermatic-labs/registryman/pkg/globalregistry"
 )
 
@@ -37,7 +39,7 @@ var _ globalregistry.Scanner = &scanner{}
 // }
 
 func (s *scanner) GetName() string {
-	return s.name
+	return strings.ToLower(s.name)
 }
 
 func (s *scanner) GetURL() string {
